@@ -3,6 +3,9 @@ from fastapi import APIRouter, HTTPException
 from backend.services.asset_service import get_machine
 from backend.services.data_service import get_latest_measurement
 
+from backend.schemas.asset import MachineSchema
+from backend.schemas.sensor import LatestMeasurementResponse
+
 
 router = APIRouter(
     prefix="/api/v1",
@@ -10,7 +13,7 @@ router = APIRouter(
 )
 
 
-@router.get("/machines/{machine_id}")
+@router.get("/machines/{machine_id}",response_model=MachineSchema,)
 def machine_detail(machine_id: str):
     machine = get_machine(machine_id)
 
@@ -23,7 +26,7 @@ def machine_detail(machine_id: str):
     return machine
 
 
-@router.get("/machines/{machine_id}/latest")
+@router.get("/machines/{machine_id}/latest",response_model=LatestMeasurementResponse,)
 def machine_latest_measurement(machine_id: str):
     machine = get_machine(machine_id)
 

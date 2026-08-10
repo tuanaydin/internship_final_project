@@ -6,15 +6,17 @@ from backend.services.asset_service import (
     get_station,
     get_stations,
 )
-
-
-router = APIRouter(
-    prefix="/api/v1",
-    tags=["Assets"],
+from backend.schemas.asset import (
+    MachineSchema,
+    PlantSchema,
+    StationSchema,
 )
 
 
-@router.get("/plants/{plant_id}")
+router = APIRouter(prefix="/api/v1",tags=["Assets"],)
+
+
+@router.get("/plants/{plant_id}",response_model=PlantSchema,)
 def plant_detail(plant_id: str):
     plant = get_plant(plant_id)
 
@@ -27,7 +29,7 @@ def plant_detail(plant_id: str):
     return plant
 
 
-@router.get("/plants/{plant_id}/stations")
+@router.get("/plants/{plant_id}/stations",response_model=list[StationSchema],)
 def plant_stations(plant_id: str):
     plant = get_plant(plant_id)
 
@@ -40,7 +42,7 @@ def plant_stations(plant_id: str):
     return get_stations(plant_id)
 
 
-@router.get("/stations/{station_id}")
+@router.get("/stations/{station_id}", response_model=StationSchema,)
 def station_detail(station_id: str):
     station = get_station(station_id)
 
@@ -53,7 +55,7 @@ def station_detail(station_id: str):
     return station
 
 
-@router.get("/stations/{station_id}/machines")
+@router.get("/stations/{station_id}/machines",response_model=list[MachineSchema],)
 def station_machines(station_id: str):
     station = get_station(station_id)
 

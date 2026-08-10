@@ -19,7 +19,7 @@ def root():
     }
 
 
-@app.get("/health")
+@app.get("/health",tags=["System"])
 def health_check():
     return {
         "status": "ok"
