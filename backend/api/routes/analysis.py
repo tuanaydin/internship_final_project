@@ -3,6 +3,8 @@ from fastapi import APIRouter, HTTPException
 from backend.services.anomaly_service import analyze_measurement
 from backend.services.asset_service import get_machine
 from backend.services.data_quality_service import analyze_data_quality
+from backend.services.trend_service import analyze_trends
+from backend.services.diagnostic_service import diagnose_machine
 
 from backend.services.data_service import (
     get_latest_measurement,
@@ -148,4 +150,144 @@ def machine_data_quality_at(
         "requested_timestamp": timestamp,
         "measurement": measurements[-1],
         "data_quality": result,
+    }
+
+
+@router.get(
+    "/machines/{machine_id}/trends/at"
+)
+def machine_trends_at(
+    machine_id: str,
+    timestamp: str,
+    window_minutes: int = 60,
+):
+    machine = get_machine(machine_id)
+
+    if machine is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Machine not found.",
+        )
+
+    if window_minutes <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="window_minutes must be greater than zero.",
+        )
+
+    measurement_limit = (window_minutes // 5) + 1
+
+    try:
+        measurements = get_measurements_until(
+            machine_id=machine_id,
+            timestamp=timestamp,
+            limit=measurement_limit,
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid timestamp format. "
+                "Use YYYY-MM-DD HH:MM:SS."
+            ),
+        )
+
+    if not measurements:
+        raise HTTPException(
+            status_code=404,
+            detail="No measurements found.",
+        )
+
+    trends = analyze_trends(measurements)
+
+    return {
+        "plant_id": machine["plant_id"],
+        "station_id": machine["station_id"],
+        "machine_id": machine_id,
+        "requested_timestamp": timestamp,
+        "window_minutes": window_minutes,
+        "trend_analysis": trends,
+    }
+
+@router.get(
+    "/machines/{machine_id}/diagnostics/at"
+)
+def machine_diagnostics_at(
+    machine_id: str,
+    timestamp: str,
+    window_minutes: int = 60,
+):
+    machine = get_machine(machine_id)
+
+    if machine is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Machine not found.",
+        )
+
+    if window_minutes <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="window_minutes must be greater than zero.",
+        )
+
+    measurement_limit = (window_minutes // 5) + 1
+
+    try:
+        measurements = get_measurements_until(
+            machine_id=machine_id,
+            timestamp=timestamp,
+            limit=measurement_limit,
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid timestamp format. "
+                "Use YYYY-MM-DD HH:MM:SS."
+            ),
+        )
+
+    if not measurements:
+        raise HTTPException(
+            status_code=404,
+            detail="No measurements found.",
+        )
+
+    latest_measurement = measurements[-1]
+
+    threshold_analysis = analyze_measurement(
+    machine_id=machine_id,
+    measurement=latest_measurement,
+)
+
+    data_quality = analyze_data_quality(
+        machine_id=machine_id,
+        measurements=measurements,
+    )
+
+    trend_analysis = analyze_trends(
+        measurements
+    )
+
+    diagnosis = diagnose_machine(
+    measurement=latest_measurement,
+    trend_analysis=trend_analysis,
+    data_quality=data_quality,
+    threshold_analysis=threshold_analysis,
+)
+
+    return {
+        "plant_id": machine["plant_id"],
+        "station_id": machine["station_id"],
+        "machine_id": machine_id,
+        "requested_timestamp": timestamp,
+        "window_minutes": window_minutes,
+        "measurement": latest_measurement,
+        "data_quality": data_quality,
+        "trend_analysis": trend_analysis,
+        "threshold_analysis": threshold_analysis,
+        "diagnosis": diagnosis,
     }
