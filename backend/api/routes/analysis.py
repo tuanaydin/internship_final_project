@@ -6,6 +6,7 @@ from backend.services.data_quality_service import analyze_data_quality
 
 from backend.services.data_service import (
     get_latest_measurement,
+    get_measurements_until,
     get_recent_measurements,
 )
 from backend.schemas.analysis import (
@@ -95,5 +96,56 @@ def machine_latest_data_quality(machine_id: str):
         "station_id": machine["station_id"],
         "machine_id": machine_id,
         "timestamp": measurements[-1]["timestamp"],
+        "data_quality": result,
+    }
+
+@router.get(
+    "/machines/{machine_id}/data-quality/at"
+)
+def machine_data_quality_at(
+    machine_id: str,
+    timestamp: str,
+):
+    machine = get_machine(machine_id)
+
+    if machine is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Machine not found.",
+        )
+
+    try:
+        measurements = get_measurements_until(
+            machine_id=machine_id,
+            timestamp=timestamp,
+            limit=20,
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid timestamp format. "
+                "Use YYYY-MM-DD HH:MM:SS."
+            ),
+        )
+
+    if not measurements:
+        raise HTTPException(
+            status_code=404,
+            detail="No measurements found before this timestamp.",
+        )
+
+    result = analyze_data_quality(
+        machine_id=machine_id,
+        measurements=measurements,
+    )
+
+    return {
+        "plant_id": machine["plant_id"],
+        "station_id": machine["station_id"],
+        "machine_id": machine_id,
+        "requested_timestamp": timestamp,
+        "measurement": measurements[-1],
         "data_quality": result,
     }

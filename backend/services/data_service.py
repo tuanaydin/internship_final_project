@@ -1,6 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 import csv
+from datetime import datetime
 
 from typing import Any
 
@@ -150,3 +151,37 @@ def get_recent_measurements(
     )
 
     return sorted_measurements[-limit:]
+
+def get_measurements_until(
+    machine_id: str,
+    timestamp: str,
+    limit: int = 20,
+) -> list[dict[str, Any]]:
+    """
+    Belirtilen timestamp'e kadar olan son N ölçümü döndürür.
+
+    Bu fonksiyon geçmişteki olayların analiz edilmesi için kullanılır.
+    """
+
+    measurements = load_machine_sensor_data(machine_id)
+
+    if not measurements:
+        return []
+
+    target_time = datetime.fromisoformat(timestamp)
+
+    filtered_measurements = []
+
+    for measurement in measurements:
+        measurement_time = datetime.fromisoformat(
+            measurement["timestamp"]
+        )
+
+        if measurement_time <= target_time:
+            filtered_measurements.append(measurement)
+
+    filtered_measurements.sort(
+        key=lambda item: item["timestamp"]
+    )
+
+    return filtered_measurements[-limit:]
