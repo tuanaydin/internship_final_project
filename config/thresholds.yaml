@@ -1,0 +1,35 @@
+machines:
+  MOTOR_A:
+
+    temperature_c:
+      name: Temperature
+      unit: "°C"
+      warning_min: 70.0
+      critical_min: 80.0
+      warning_alarm: ALM-TEMP-01
+      critical_alarm: ALM-TEMP-02
+
+    vibration_mm_s:
+      name: Vibration
+      unit: "mm/s RMS"
+      warning_min: 3.5
+      critical_min: 6.0
+      warning_alarm: ALM-VIB-01
+      critical_alarm: ALM-VIB-02
+
+    current_a:
+      name: Current
+      unit: "A"
+      warning_min: 19.0
+      critical_min: 22.0
+      warning_alarm: ALM-CUR-01
+      critical_alarm: ALM-CUR-02
+
+    load_pct:
+      name: Load
+      unit: "%"
+      normal_min: 35.0
+      warning_min: 92.0
+      critical_min: 105.0
+      warning_alarm: ALM-LOAD-01
+      critical_alarm: ALM-LOAD-01

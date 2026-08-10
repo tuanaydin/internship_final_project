@@ -1,0 +1,15 @@
+machines:
+  MOTOR_A:
+
+    required_fields:
+      - temperature_c
+      - vibration_mm_s
+
+    stuck:
+      sensor: temperature_c
+      window_size: 19
+
+    spike:
+      sensor: temperature_c
+      comparison_window: 3
+      deviation_threshold: 30.0

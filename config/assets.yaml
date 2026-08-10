@@ -1,0 +1,42 @@
+plant:
+  id: PLANT_01
+  name: Demo Factory
+
+stations:
+  - id: STATION_01
+    name: Production Station 01
+    plant_id: PLANT_01
+
+    machines:
+      - id: MOTOR_A
+        name: Motor A
+        type: electric_motor
+
+        data:
+          sensor_data: data/PLANT_01/STATION_01/MOTOR_A/motor_a_dummy_sensor_data.csv
+          reference_dataset: data/PLANT_01/STATION_01/MOTOR_A/motor_a_dummy_dataset.xlsx
+
+        knowledge_base:
+          path: knowledge_base/PLANT_01/STATION_01/MOTOR_A
+
+        sensors:
+          - id: TEMP_A
+            type: temperature
+            unit: "°C"
+
+          - id: VIB_A
+            type: vibration
+            unit: "mm/s RMS"
+
+          - id: CUR_A
+            type: current
+            unit: "A"
+
+          - id: PWR_A
+            type: active_power
+            unit: "kW"
+
+  - id: STATION_02
+    name: Production Station 02
+    plant_id: PLANT_01
+    machines: []
