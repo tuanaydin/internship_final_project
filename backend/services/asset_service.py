@@ -1,14 +1,9 @@
 from __future__ import annotations
-
-from pathlib import Path
 from typing import Any
 
 import yaml
 
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-ASSETS_FILE = PROJECT_ROOT / "config" / "assets.yaml"
-
+from backend.core.config import ASSETS_FILE
 
 def load_assets() -> dict[str, Any]:
     """

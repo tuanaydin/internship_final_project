@@ -1,20 +1,13 @@
 from __future__ import annotations
 
-from pathlib import Path
+
 from statistics import median
 from typing import Any
 
 import yaml
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-
-DATA_QUALITY_FILE = (
-    PROJECT_ROOT
-    / "config"
-    / "data_quality.yaml"
-)
-
+from backend.core.config import DATA_QUALITY_FILE
 
 def load_data_quality_config() -> dict[str, Any]:
     if not DATA_QUALITY_FILE.exists():

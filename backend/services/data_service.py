@@ -1,13 +1,13 @@
 from __future__ import annotations
-
-import csv
 from pathlib import Path
+import csv
+
 from typing import Any
 
 from backend.services.asset_service import get_machine
+from backend.core.config import PROJECT_ROOT
 
 
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 
 
 # Uygulamanın analiz için kullanacağı ham IoT alanları

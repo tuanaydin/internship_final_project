@@ -1,14 +1,11 @@
 from __future__ import annotations
 
-from pathlib import Path
+
 from typing import Any
 
 import yaml
 
-
-PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
-THRESHOLDS_FILE = PROJECT_ROOT / "config" / "thresholds.yaml"
-
+from backend.core.config import THRESHOLDS_FILE
 
 SEVERITY_ORDER = {
     "normal": 0,
