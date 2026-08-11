@@ -1,4 +1,4 @@
-# Platform360 IoT Maintenance Assistant — MVP
+# IoT Maintenance Assistant — MVP
 
 > **Durum:** Deterministik IoT analiz çekirdeği tamamlandı.  
 > **Sıradaki ana aşama:** RAG bilgi erişim katmanı.  
@@ -22,7 +22,7 @@ Temel yaklaşım:
 
 ## 2. Proje Konumlandırması
 
-Amaç Platform360 benzeri bir IIoT platformunu baştan geliştirmek değildir.
+Amaç bir IIoT platformunu baştan geliştirmek değildir.
 
 MVP odağı:
 
