@@ -3,6 +3,18 @@ import ReactMarkdown from "react-markdown";
 
 import { askAssistant } from "./api/assistant";
 
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+import { getMeasurementsAt } from "./api/measurements";
+
 
 const DEFAULT_QUESTION =
   "Motor-A neden kritik durumda ve hangi bakım işlemleri yapılmalı?";
@@ -28,6 +40,57 @@ const DIAGNOSIS_LABELS = {
   overload: "Aşırı Yük",
 };
 
+const SENSOR_CHARTS = {
+  temperature: {
+    label: "Sıcaklık",
+    code: "TEMP",
+    dataKey: "temperature",
+    unit: "°C",
+    axisDecimals: 0,
+    valueDecimals: 2,
+    padding: 2,
+  },
+
+  vibration: {
+    label: "Titreşim",
+    code: "VIB",
+    dataKey: "vibration",
+    unit: "mm/s",
+    axisDecimals: 1,
+    valueDecimals: 3,
+    padding: 0.5,
+  },
+
+  current: {
+    label: "Akım",
+    code: "CUR",
+    dataKey: "current",
+    unit: "A",
+    axisDecimals: 1,
+    valueDecimals: 2,
+    padding: 1,
+  },
+
+  load: {
+    label: "Yük",
+    code: "LOAD",
+    dataKey: "load",
+    unit: "%",
+    axisDecimals: 0,
+    valueDecimals: 2,
+    padding: 5,
+  },
+
+  power: {
+    label: "Güç",
+    code: "PWR",
+    dataKey: "power",
+    unit: "kW",
+    axisDecimals: 1,
+    valueDecimals: 3,
+    padding: 1,
+  },
+};
 
 function toBackendTimestamp(value) {
   if (!value) {
@@ -67,12 +130,36 @@ function MetricCard({
   value,
   unit,
   trend,
+  code,
 }) {
   return (
-    <div className="metric-card">
+    <article className="metric-card">
+
+      <div className="metric-card-header">
+        <span className="metric-code">
+          {code}
+        </span>
+
+        {trend && (
+          <span className={`trend-pill trend-${trend}`}>
+            <span className="trend-symbol">
+              {trend === "increasing"
+                ? "↗"
+                : trend === "decreasing"
+                  ? "↘"
+                  : "→"}
+            </span>
+
+            {TREND_LABELS[trend] || trend}
+          </span>
+        )}
+      </div>
+
+
       <span className="metric-title">
         {title}
       </span>
+
 
       <div className="metric-value-row">
         <strong className="metric-value">
@@ -86,12 +173,7 @@ function MetricCard({
         )}
       </div>
 
-      {trend && (
-        <span className={`trend trend-${trend}`}>
-          {TREND_LABELS[trend] || trend}
-        </span>
-      )}
-    </div>
+    </article>
   );
 }
 
@@ -144,6 +226,12 @@ function App() {
   const [result, setResult] =
     useState(null);
 
+  const [measurements, setMeasurements] =
+  useState([]);
+
+  const [selectedSensor, setSelectedSensor] =
+  useState("temperature");
+
   const [loading, setLoading] =
     useState(false);
 
@@ -165,15 +253,33 @@ function App() {
     setError("");
 
     try {
-      const response = await askAssistant({
-        machineId,
-        question: question.trim(),
-        timestamp: toBackendTimestamp(timestamp),
-        windowMinutes: Number(windowMinutes),
-        topK: 5,
-      });
+      const backendTimestamp =
+  toBackendTimestamp(timestamp);
 
-      setResult(response);
+const [
+  assistantResponse,
+  measurementsResponse,
+] = await Promise.all([
+  askAssistant({
+    machineId,
+    question: question.trim(),
+    timestamp: backendTimestamp,
+    windowMinutes: Number(windowMinutes),
+    topK: 5,
+  }),
+
+  getMeasurementsAt({
+    machineId,
+    timestamp: backendTimestamp,
+    windowMinutes: Number(windowMinutes),
+  }),
+]);
+
+setResult(assistantResponse);
+
+setMeasurements(
+  measurementsResponse.measurements || []
+);
     } catch (err) {
       setError(
         err.message ||
@@ -193,6 +299,39 @@ function App() {
 
   const sources =
     result?.sources || [];
+
+
+  const chartData = measurements.map((measurement) => ({
+    time:
+      measurement.timestamp?.slice(11, 16) ||
+      "",
+
+    temperature:
+      measurement.temperature_c,
+
+    vibration:
+      measurement.vibration_mm_s,
+          current:
+      measurement.current_a,
+
+    load:
+      measurement.load_pct,
+
+    power:
+      measurement.power_kw,
+  })
+);
+
+const activeSensor =
+  SENSOR_CHARTS[selectedSensor];
+
+const latestChartPoint =
+  chartData.length > 0
+    ? chartData[chartData.length - 1]
+    : null;
+
+const activeSensorValue =
+  latestChartPoint?.[activeSensor.dataKey];
 
 
   return (
@@ -629,75 +768,120 @@ function App() {
 
               <div className="summary-grid">
 
-                <article className="summary-card">
-                  <span className="card-label">
-                    Teşhis
-                  </span>
+                <article className="summary-card summary-card-diagnosis">
 
-                  <strong className="summary-value">
-                    {DIAGNOSIS_LABELS[
-                      deterministic.diagnosis
-                    ] ||
-                      deterministic.diagnosis ||
-                      "Teşhis yok"}
-                  </strong>
+  <div className="summary-card-header">
+    <span className="summary-type">
+      TEŞHİS 
+    </span>
 
-                  <small>
-                    {deterministic.diagnosis}
-                  </small>
-
-                  <div className="confidence">
-                    Güven:{" "}
-                    <strong>
-                      {
-                        deterministic
-                          .confidence
-                      }
-                    </strong>
-                  </div>
-                </article>
+    <span className="confidence-chip">
+      {deterministic.confidence === "high"
+        ? "Yüksek Güven"
+        : deterministic.confidence || "-"}
+    </span>
+  </div>
 
 
-                <article className="summary-card">
-                  <span className="card-label">
-                    Önerilen Prosedür
-                  </span>
-
-                  <strong className="procedure-code">
-                    {
-                      deterministic
-                        .recommended_procedure ||
-                      "-"
-                    }
-                  </strong>
-
-                  <small>
-                    Deterministik bakım yönlendirmesi
-                  </small>
-                </article>
+  <strong className="summary-value">
+    {DIAGNOSIS_LABELS[
+      deterministic.diagnosis
+    ] ||
+      deterministic.diagnosis ||
+      " Teşhis yok"}
+  </strong>
 
 
-                <article className="summary-card">
-                  <span className="card-label">
-                    Eskalasyon
-                  </span>
+  <code className="summary-code">
+    {deterministic.diagnosis || "-"}
+  </code>
 
-                  <strong className="procedure-code">
-                    {deterministic
-                      .escalation_required
-                      ? deterministic
-                          .escalation_procedure
-                      : "Gerekli değil"}
-                  </strong>
 
-                  <small>
-                    {deterministic
-                      .escalation_required
-                      ? "Yetkili bakım incelemesi gerekli"
-                      : "Eskalasyon gerekmiyor"}
-                  </small>
-                </article>
+  <div className="summary-footer">
+    Deterministik çoklu sensör analizi
+  </div>
 
+</article>
+
+
+                <article className="summary-card summary-card-procedure">
+
+  <div className="summary-card-header">
+    <span className="summary-type">
+      BAKIM PROSEDÜRÜ
+    </span>
+
+    <span className="procedure-chip">
+       Önerilen
+    </span>
+  </div>
+
+
+  <strong className="procedure-code">
+    {
+      deterministic
+        .recommended_procedure ||
+      "-"
+    }
+  </strong>
+
+
+  <p className="summary-description">
+    Deterministik analiz sonucuna göre
+    önerilen ilk bakım yönlendirmesi.
+  </p>
+
+
+  <div className="summary-footer">
+    Teknik prosedür ile desteklenir
+  </div>
+
+</article>
+
+
+                <article className="summary-card summary-card-escalation">
+
+  <div className="summary-card-header">
+    <span className="summary-type">
+      ESKALASYON
+    </span>
+
+    <span
+      className={
+        deterministic.escalation_required
+          ? "escalation-chip required"
+          : "escalation-chip"
+      }
+    >
+      {deterministic.escalation_required
+        ? "Gerekli"
+        : "Gerekli Değil"}
+    </span>
+  </div>
+
+
+  <strong className="procedure-code">
+    {deterministic
+      .escalation_required
+      ? deterministic
+          .escalation_procedure
+      : "-"}
+  </strong>
+
+
+  <p className="summary-description">
+    {deterministic
+      .escalation_required
+      ? "Yetkili bakım personeli tarafından kritik inceleme gereklidir."
+      : "Mevcut durumda ek eskalasyon gerekmiyor."}
+  </p>
+
+
+  <div className="summary-footer">
+    İnsan onaylı bakım kararı
+  </div>
+
+</article>
               </div>
 
 
@@ -705,17 +889,15 @@ function App() {
 
                 <MetricCard
                   title="Sıcaklık"
-                  value={
-                    evidence.temperature_c
-                  }
+                  code="TEMP"
+                  value={evidence.temperature_c}
                   unit="°C"
-                  trend={
-                    evidence.temperature_trend
-                  }
+                  trend={evidence.temperature_trend}
                 />
 
                 <MetricCard
                   title="Titreşim"
+                  code="VIB"
                   value={
                     evidence.vibration_mm_s
                   }
@@ -727,6 +909,7 @@ function App() {
 
                 <MetricCard
                   title="Akım"
+                  code="CUR"
                   value={
                     evidence.current_a
                   }
@@ -738,6 +921,7 @@ function App() {
 
                 <MetricCard
                   title="Yük"
+                  code="LOAD"
                   value={
                     evidence.load_pct
                   }
@@ -749,6 +933,7 @@ function App() {
 
                 <MetricCard
                   title="Güç"
+                  code="PWR"
                   value={
                     evidence.power_kw
                   }
@@ -762,48 +947,260 @@ function App() {
 
 
               <div className="alarm-panel">
-                <div>
-                  <span className="card-label">
-                    Aktif Alarmlar
-                  </span>
-                </div>
 
-                <div className="alarm-list">
-                  {deterministic
-                    .active_alarms
-                    ?.map((alarm) => (
-                      <code
-                        key={alarm}
-                        className="alarm-chip"
-                      >
-                        {alarm}
-                      </code>
-                    ))}
-                </div>
-              </div>
+  <div className="alarm-panel-heading">
+
+    <div className="alarm-icon">
+      !
+    </div>
+
+    <div>
+      <span className="card-label">
+        AKTİF ALARMLAR
+      </span>
+
+      <strong>
+        {deterministic.active_alarms?.length || 0}
+        {" "}aktif alarm
+      </strong>
+    </div>
+
+  </div>
+
+
+  <div className="alarm-list">
+
+    {deterministic
+      .active_alarms
+      ?.map((alarm) => (
+        <code
+          key={alarm}
+          className="alarm-chip"
+        >
+          <span className="alarm-dot" />
+          {alarm}
+        </code>
+      ))}
+
+  </div>
+
+</div>
 
             </section>
           </>
         )}
 
 
+ {chartData.length > 0 && (
+  <section className="section-block">
+
+    <div className="section-heading">
+      <div>
+        <p className="eyebrow">
+          SENSÖR TRENDLERİ
+        </p>
+
+        <h2>
+          Zaman Serisi Analizi
+        </h2>
+      </div>
+
+      <span className="chart-window-badge">
+        Son {windowMinutes} dakika
+      </span>
+    </div>
+
+
+    <article className="trend-chart-card">
+
+      <div className="sensor-chart-selector">
+
+        {Object.entries(SENSOR_CHARTS).map(
+          ([key, sensor]) => (
+            <button
+              key={key}
+              type="button"
+              className={`sensor-chart-button ${
+                selectedSensor === key
+                  ? "active"
+                  : ""
+              }`}
+              onClick={() =>
+                setSelectedSensor(key)
+              }
+            >
+              <span>
+                {sensor.code}
+              </span>
+
+              {sensor.label}
+            </button>
+          )
+        )}
+
+      </div>
+
+
+      <div className="trend-chart-header">
+
+        <div>
+          <span className="chart-sensor-code">
+            {activeSensor.code}
+          </span>
+
+          <h3>
+            {activeSensor.label}
+          </h3>
+        </div>
+
+
+        <strong>
+          {activeSensorValue !== null &&
+          activeSensorValue !== undefined
+            ? Number(
+                activeSensorValue
+              ).toFixed(
+                activeSensor.valueDecimals
+              )
+            : "-"}{" "}
+          {activeSensor.unit}
+        </strong>
+
+      </div>
+
+
+      <div className="chart-container chart-container-large">
+
+        <ResponsiveContainer
+          width="100%"
+          height="100%"
+        >
+          <LineChart
+            data={chartData}
+            margin={{
+              top: 10,
+              right: 15,
+              left: -5,
+              bottom: 0,
+            }}
+          >
+
+            <CartesianGrid
+              strokeDasharray="3 3"
+              vertical={false}
+              stroke="#eaecf0"
+            />
+
+
+            <XAxis
+              dataKey="time"
+              tick={{
+                fontSize: 9,
+                fill: "#98a2b3",
+              }}
+              axisLine={false}
+              tickLine={false}
+              minTickGap={35}
+            />
+
+
+            <YAxis
+              tick={{
+                fontSize: 9,
+                fill: "#98a2b3",
+              }}
+              axisLine={false}
+              tickLine={false}
+              domain={[
+                (dataMin) =>
+                  dataMin -
+                  activeSensor.padding,
+
+                (dataMax) =>
+                  dataMax +
+                  activeSensor.padding,
+              ]}
+              tickFormatter={(value) =>
+                activeSensor.axisDecimals === 0
+                  ? Math.round(value)
+                  : Number(value).toFixed(
+                      activeSensor.axisDecimals
+                    )
+              }
+            />
+
+
+            <Tooltip
+              labelFormatter={(label) =>
+                `Saat: ${label}`
+              }
+              formatter={(value) => [
+                `${Number(value).toFixed(
+                  activeSensor.valueDecimals
+                )} ${activeSensor.unit}`,
+                activeSensor.label,
+              ]}
+            />
+
+
+            <Line
+              type="monotone"
+              dataKey={activeSensor.dataKey}
+              stroke="#1769e0"
+              strokeWidth={2}
+              dot={false}
+              activeDot={{ r: 4 }}
+              animationDuration={350}
+            />
+
+          </LineChart>
+        </ResponsiveContainer>
+
+      </div>
+
+    </article>
+
+  </section>
+)}
+
+
+
+
+
         <section className="assistant-card">
 
           <div className="assistant-heading">
-            <div>
-              <p className="eyebrow">
-                RAG + LLM
-              </p>
 
-              <h2>
-                Bakım Asistanı
-              </h2>
-            </div>
+  <div className="assistant-title-group">
 
-            <span className="grounded-badge">
-              Evidence Grounded
-            </span>
-          </div>
+    <div className="assistant-logo">
+      ✦
+    </div>
+
+    <div>
+      <p className="eyebrow">
+        AI MAINTENANCE COPILOT
+      </p>
+
+      <h2>
+        Bakım Asistanı
+      </h2>
+
+      <span className="assistant-subtitle">
+        Sensör kanıtları ve teknik dokümanlarla
+        desteklenen bakım karar desteği
+      </span>
+    </div>
+
+  </div>
+
+
+  <span className="grounded-badge">
+    <span className="grounded-dot" />
+    Evidence Grounded
+  </span>
+
+</div>
 
 
           <form
@@ -871,24 +1268,37 @@ function App() {
 
           {result && !loading && (
             <div className="assistant-result">
+              <div className="user-message">
+
+             <div className="message-label">
+              SİZ
+         </div>
+
+         <div className="user-message-content">
+         {result.question}
+         </div>
+
+          </div>
 
               <article className="answer-card">
 
-                <div className="answer-header">
-                  <span className="answer-icon">
-                    AI
-                  </span>
+<div className="answer-header">
 
-                  <div>
-                    <strong>
-                      Bakım Asistanı Cevabı
-                    </strong>
+  <span className="answer-icon">
+    AI
+  </span>
 
-                    <small>
-                      Kaynaklandırılmış RAG cevabı
-                    </small>
-                  </div>
-                </div>
+  <div>
+    <strong>
+      Bakım Asistanı
+    </strong>
+
+    <small>
+      Deterministik analiz + RAG
+    </small>
+  </div>
+
+</div>
 
 
                 <div className="markdown-content">

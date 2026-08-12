@@ -10,6 +10,8 @@ from backend.services.data_service import (
     get_latest_measurement,
     get_measurements_until,
     get_recent_measurements,
+    get_measurements_in_window,
+
 )
 from backend.schemas.analysis import (
     LatestAnalysisResponse,
@@ -290,4 +292,64 @@ def machine_diagnostics_at(
         "trend_analysis": trend_analysis,
         "threshold_analysis": threshold_analysis,
         "diagnosis": diagnosis,
+    }
+
+@router.get(
+    "/machines/{machine_id}/measurements/at"
+)
+def machine_measurements_at(
+    machine_id: str,
+    timestamp: str,
+    window_minutes: int = 60,
+):
+    machine = get_machine(machine_id)
+
+    if machine is None:
+        raise HTTPException(
+            status_code=404,
+            detail="Machine not found.",
+        )
+
+    if window_minutes <= 0:
+        raise HTTPException(
+            status_code=400,
+            detail="window_minutes must be greater than zero.",
+        )
+
+    try:
+        measurements = get_measurements_in_window(
+            machine_id=machine_id,
+            timestamp=timestamp,
+            window_minutes=window_minutes,
+        )
+
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        )
+
+    except ValueError:
+        raise HTTPException(
+            status_code=400,
+            detail=(
+                "Invalid timestamp format. "
+                "Use YYYY-MM-DD HH:MM:SS."
+            ),
+        )
+
+    if not measurements:
+        raise HTTPException(
+            status_code=404,
+            detail="No measurements found in this time window.",
+        )
+
+    return {
+        "plant_id": machine["plant_id"],
+        "station_id": machine["station_id"],
+        "machine_id": machine_id,
+        "requested_timestamp": timestamp,
+        "window_minutes": window_minutes,
+        "measurement_count": len(measurements),
+        "measurements": measurements,
     }

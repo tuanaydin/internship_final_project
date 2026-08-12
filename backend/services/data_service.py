@@ -1,7 +1,7 @@
 from __future__ import annotations
 from pathlib import Path
 import csv
-from datetime import datetime
+from datetime import datetime,timedelta
 
 from typing import Any
 
@@ -185,3 +185,54 @@ def get_measurements_until(
     )
 
     return filtered_measurements[-limit:]
+
+def get_measurements_in_window(
+    machine_id: str,
+    timestamp: str,
+    window_minutes: int,
+) -> list[dict[str, Any]]:
+    """
+    Belirtilen timestamp ile geçmişteki zaman penceresi
+    arasında kalan sensör ölçümlerini kronolojik sırayla döndürür.
+
+    Örnek:
+    timestamp = 2026-07-27 20:00:00
+    window_minutes = 300
+
+    Aralık:
+    2026-07-27 15:00:00
+    ->
+    2026-07-27 20:00:00
+    """
+
+    if window_minutes <= 0:
+        raise ValueError(
+            "window_minutes must be greater than zero."
+        )
+
+    measurements = load_machine_sensor_data(machine_id)
+
+    if not measurements:
+        return []
+
+    target_time = datetime.fromisoformat(timestamp)
+
+    start_time = target_time - timedelta(
+        minutes=window_minutes
+    )
+
+    filtered_measurements = []
+
+    for measurement in measurements:
+        measurement_time = datetime.fromisoformat(
+            measurement["timestamp"]
+        )
+
+        if start_time <= measurement_time <= target_time:
+            filtered_measurements.append(measurement)
+
+    filtered_measurements.sort(
+        key=lambda item: item["timestamp"]
+    )
+
+    return filtered_measurements
