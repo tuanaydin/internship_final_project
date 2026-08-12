@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState,useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
 import { askAssistant } from "./api/assistant";
@@ -12,6 +12,8 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+
+import {getPlant,getStations,getMachines,} from "./api/assets";
 
 import { getMeasurementsAt } from "./api/measurements";
 
@@ -209,8 +211,22 @@ function SourceCard({ source }) {
   );
 }
 
-
 function App() {
+  const [plant, setPlant] =
+    useState(null);
+
+  const [stations, setStations] =
+    useState([]);
+
+  const [machinesByStation, setMachinesByStation] =
+    useState({});
+
+  const [assetsLoading, setAssetsLoading] =
+    useState(true);
+
+  const [assetsError, setAssetsError] =
+    useState("");
+
   const [machineId, setMachineId] =
     useState("MOTOR_A");
 
@@ -237,6 +253,72 @@ function App() {
 
   const [error, setError] =
     useState("");
+  useEffect(() => {
+  async function loadAssetHierarchy() {
+    setAssetsLoading(true);
+    setAssetsError("");
+
+    try {
+      const plantId = "PLANT_01";
+
+      const [
+        plantResponse,
+        stationsResponse,
+      ] = await Promise.all([
+        getPlant(plantId),
+        getStations(plantId),
+      ]);
+
+      const stationList =
+        Array.isArray(stationsResponse)
+          ? stationsResponse
+          : stationsResponse.stations || [];
+
+      setPlant(plantResponse);
+      setStations(stationList);
+
+      const machineEntries =
+        await Promise.all(
+          stationList.map(
+            async (station) => {
+              const machinesResponse =
+                await getMachines(
+                  station.id
+                );
+
+              const machineList =
+                Array.isArray(
+                  machinesResponse
+                )
+                  ? machinesResponse
+                  : machinesResponse
+                      .machines || [];
+
+              return [
+                station.id,
+                machineList,
+              ];
+            }
+          )
+        );
+
+      setMachinesByStation(
+        Object.fromEntries(
+          machineEntries
+        )
+      );
+    } catch (err) {
+      setAssetsError(
+        err.message ||
+          "Varlık hiyerarşisi yüklenemedi."
+      );
+    } finally {
+      setAssetsLoading(false);
+    }
+  }
+
+  loadAssetHierarchy();
+}, []);
 
 
   async function handleSubmit(event) {
@@ -332,6 +414,23 @@ const latestChartPoint =
 
 const activeSensorValue =
   latestChartPoint?.[activeSensor.dataKey];
+
+const allMachines =
+  Object.values(machinesByStation).flat();
+
+const machineCount = allMachines.length;
+
+const selectedMachine =
+  allMachines.find(
+    (machine) => machine.id === machineId
+  ) || null;
+
+const selectedStation =
+  stations.find((station) =>
+    (machinesByStation[station.id] || []).some(
+      (machine) => machine.id === machineId
+    )
+  ) || null;
 
 
   return (
@@ -467,92 +566,141 @@ const activeSensorValue =
         </p>
 
         <span className="asset-count">
-          1 Makine
+          {machineCount} Makine
         </span>
       </div>
 
 
-      <div className="asset-tree">
+<div className="asset-tree">
 
-        <div className="asset-row plant">
-          <span className="asset-status-dot unknown-dot" />
-
-          <div>
-            <strong>
-              PLANT_01
-            </strong>
-
-            <small>
-              Demo Factory
-            </small>
-          </div>
-        </div>
-
-
-        <div className="tree-connector">
-          <span />
-        </div>
-
-
-        <div className="asset-row station">
-          <span className="asset-node-icon">
-            S
-          </span>
-
-          <div>
-            <strong>
-              STATION_01
-            </strong>
-
-            <small>
-              Production Station
-            </small>
-          </div>
-        </div>
-
-
-        <button
-          type="button"
-          className="asset-row machine active"
-          onClick={() =>
-            setMachineId("MOTOR_A")
-          }
-        >
-          <span
-            className={`asset-status-dot ${getAssetStatusClass(
-    deterministic?.overall_status)
-            }`}
-          />
-
-          <div>
-            <strong>
-              MOTOR_A
-            </strong>
-
-            <small>
-              Electric Motor
-            </small>
-          </div>
-        </button>
-
-
-        <div className="asset-row station disabled-asset">
-          <span className="asset-node-icon">
-            S
-          </span>
-
-          <div>
-            <strong>
-              STATION_02
-            </strong>
-
-            <small>
-              Makine bulunmuyor
-            </small>
-          </div>
-        </div>
-
+  {assetsLoading && (
+    <div className="asset-row">
+      <div>
+        <small>
+          Varlıklar yükleniyor...
+        </small>
       </div>
+    </div>
+  )}
+
+
+  {assetsError && (
+    <div className="asset-row">
+      <div>
+        <small>
+          {assetsError}
+        </small>
+      </div>
+    </div>
+  )}
+
+
+  {!assetsLoading && !assetsError && plant && (
+    <>
+      <div className="asset-row plant">
+        <span className="asset-status-dot unknown-dot" />
+
+        <div>
+          <strong>
+            {plant.id}
+          </strong>
+
+          <small>
+            {plant.name}
+          </small>
+        </div>
+      </div>
+
+
+      {stations.map((station) => {
+        const stationMachines =
+          machinesByStation[station.id] || [];
+
+        return (
+          <div
+            key={station.id}
+            className="station-tree-group"
+          >
+
+            <div className="asset-row station">
+              <span className="asset-node-icon">
+                S
+              </span>
+
+              <div>
+                <strong>
+                  {station.id}
+                </strong>
+
+                <small>
+                  {station.name}
+                </small>
+              </div>
+            </div>
+
+
+            {stationMachines.length > 0 ? (
+              stationMachines.map((machine) => (
+                <button
+                  key={machine.id}
+                  type="button"
+                  className={`asset-row machine ${
+                    machineId === machine.id
+                      ? "active"
+                      : ""
+                  }`}
+                  onClick={() => {
+                    setMachineId(machine.id);
+                    setResult(null);
+                    setMeasurements([]);
+                    setError("");
+                  }}
+                >
+
+                  <span
+                    className={`asset-status-dot ${
+                      machineId === machine.id
+                        ? getAssetStatusClass(
+                            deterministic?.overall_status
+                          )
+                        : "unknown-dot"
+                    }`}
+                  />
+
+                  <div>
+                    <strong>
+                      {machine.id}
+                    </strong>
+
+                    <small>
+                      {machine.name ||
+                        machine.type ||
+                        "Machine"}
+                    </small>
+                  </div>
+
+                </button>
+              ))
+            ) : (
+              <div className="asset-row machine disabled-asset">
+                <span className="asset-status-dot unknown-dot" />
+
+                <div>
+                  <small>
+                    Makine bulunmuyor
+                  </small>
+                </div>
+              </div>
+            )}
+
+          </div>
+        );
+      })}
+
+    </>
+  )}
+
+    </div>
 
     </div>
   </div>
@@ -585,25 +733,25 @@ const activeSensorValue =
 
   <div>
     <div className="breadcrumbs">
-      <span>
-        PLANT_01
-      </span>
+<span>
+  {plant?.id || "-"}
+</span>
 
-      <span className="breadcrumb-separator">
-        /
-      </span>
+<span className="breadcrumb-separator">
+  /
+</span>
 
-      <span>
-        STATION_01
-      </span>
+<span>
+  {selectedStation?.id || "-"}
+</span>
 
-      <span className="breadcrumb-separator">
-        /
-      </span>
+<span className="breadcrumb-separator">
+  /
+</span>
 
-      <strong>
-        MOTOR_A
-      </strong>
+<strong>
+  {selectedMachine?.id || machineId || "-"}
+</strong>
     </div>
 
 
@@ -614,7 +762,7 @@ const activeSensorValue =
         </p>
 
         <h1>
-          Motor A
+            {selectedMachine?.name ||selectedMachine?.id ||"Makine"}
         </h1>
       </div>
 
@@ -657,18 +805,34 @@ const activeSensorValue =
               Makine
             </label>
 
-            <select
-              value={machineId}
-              onChange={(event) =>
-                setMachineId(
-                  event.target.value
-                )
-              }
-            >
-              <option value="MOTOR_A">
-                MOTOR_A
-              </option>
-            </select>
+ <select
+  value={machineId}
+  disabled={assetsLoading || allMachines.length === 0}
+  onChange={(event) => {
+    setMachineId(event.target.value);
+    setResult(null);
+    setMeasurements([]);
+    setError("");
+  }}
+>
+  {allMachines.length > 0 ? (
+    allMachines.map((machine) => (
+      <option
+        key={machine.id}
+        value={machine.id}
+      >
+        {machine.id}
+        {machine.name
+          ? ` — ${machine.name}`
+          : ""}
+      </option>
+    ))
+  ) : (
+    <option value="">
+      Makine bulunamadı
+    </option>
+  )}
+</select>
           </div>
 
 
