@@ -2,6 +2,7 @@ import { useState,useEffect } from "react";
 import ReactMarkdown from "react-markdown";
 
 import { askAssistant } from "./api/assistant";
+import { getDiagnosticsAt } from "./api/diagnostics";
 
 import {
   LineChart,
@@ -126,6 +127,99 @@ function getAssetStatusClass(status) {
 
   return "normal-dot";
 }
+function normalizeDiagnostics(data) {
+  const measurement =
+    data.measurement || {};
+
+  const trends =
+    data.trend_analysis?.trends || [];
+
+  const getTrend = (sensorName) =>
+    trends.find(
+      (trend) => trend.sensor === sensorName
+    )?.direction || null;
+
+  const thresholdAlarms =
+    data.threshold_analysis?.active_alarms || [];
+
+  const diagnosisAlarm =
+    data.diagnosis?.alarm_code;
+
+  const activeAlarms = [
+    ...thresholdAlarms,
+    ...(diagnosisAlarm
+      ? [diagnosisAlarm]
+      : []),
+  ];
+
+  return {
+    overall_status:
+      data.threshold_analysis?.overall_status ||
+      "normal",
+
+    data_quality_status:
+      data.data_quality?.status ||
+      "unknown",
+
+    diagnosis:
+      data.diagnosis?.diagnosis ||
+      null,
+
+    confidence:
+      data.diagnosis?.confidence ||
+      null,
+
+    recommended_procedure:
+      data.diagnosis
+        ?.recommended_procedure ||
+      null,
+
+    escalation_required:
+      data.diagnosis
+        ?.escalation_required ||
+      false,
+
+    escalation_procedure:
+      data.diagnosis
+        ?.escalation_procedure ||
+      null,
+
+    active_alarms:
+      [...new Set(activeAlarms)],
+
+    evidence: {
+      temperature_c:
+        measurement.temperature_c,
+
+      temperature_trend:
+        getTrend("temperature_c"),
+
+      vibration_mm_s:
+        measurement.vibration_mm_s,
+
+      vibration_trend:
+        getTrend("vibration_mm_s"),
+
+      current_a:
+        measurement.current_a,
+
+      current_trend:
+        getTrend("current_a"),
+
+      load_pct:
+        measurement.load_pct,
+
+      load_trend:
+        getTrend("load_pct"),
+
+      power_kw:
+        measurement.power_kw,
+
+      power_trend:
+        getTrend("power_kw"),
+    },
+  };
+}
 
 function MetricCard({
   title,
@@ -236,11 +330,20 @@ function App() {
   const [windowMinutes, setWindowMinutes] =
     useState(300);
 
-  const [question, setQuestion] =
+const [question, setQuestion] =
     useState(DEFAULT_QUESTION);
 
-  const [result, setResult] =
+const [result, setResult] =
     useState(null);
+
+const [analysis, setAnalysis] =
+  useState(null);
+
+const [analysisLoading, setAnalysisLoading] =
+  useState(false);
+
+const [analysisError, setAnalysisError] =
+  useState("");
 
   const [measurements, setMeasurements] =
   useState([]);
@@ -253,7 +356,8 @@ function App() {
 
   const [error, setError] =
     useState("");
-  useEffect(() => {
+/*use effect*/ 
+useEffect(() => {
   async function loadAssetHierarchy() {
     setAssetsLoading(true);
     setAssetsError("");
@@ -321,60 +425,108 @@ function App() {
 }, []);
 
 
-  async function handleSubmit(event) {
-    event.preventDefault();
+useEffect(() => {
+  if (!machineId || !timestamp) {
+    return;
+  }
 
-    if (!question.trim()) {
-      setError(
-        "Lütfen bakım asistanına bir soru yazın."
-      );
-      return;
-    }
-
-    setLoading(true);
-    setError("");
+  async function loadMachineDashboard() {
+    setAnalysisLoading(true);
+    setAnalysisError("");
 
     try {
       const backendTimestamp =
-  toBackendTimestamp(timestamp);
+        toBackendTimestamp(timestamp);
 
-const [
-  assistantResponse,
-  measurementsResponse,
-] = await Promise.all([
-  askAssistant({
-    machineId,
-    question: question.trim(),
-    timestamp: backendTimestamp,
-    windowMinutes: Number(windowMinutes),
-    topK: 5,
-  }),
+      const [
+        diagnosticsResponse,
+        measurementsResponse,
+      ] = await Promise.all([
+        getDiagnosticsAt({
+          machineId,
+          timestamp: backendTimestamp,
+          windowMinutes:
+            Number(windowMinutes),
+        }),
 
-  getMeasurementsAt({
-    machineId,
-    timestamp: backendTimestamp,
-    windowMinutes: Number(windowMinutes),
-  }),
-]);
+        getMeasurementsAt({
+          machineId,
+          timestamp: backendTimestamp,
+          windowMinutes:
+            Number(windowMinutes),
+        }),
+      ]);
 
-setResult(assistantResponse);
+      setAnalysis(
+        normalizeDiagnostics(
+          diagnosticsResponse
+        )
+      );
 
-setMeasurements(
-  measurementsResponse.measurements || []
-);
+      setMeasurements(
+        measurementsResponse
+          .measurements || []
+      );
     } catch (err) {
-      setError(
+      setAnalysis(null);
+      setMeasurements([]);
+
+      setAnalysisError(
         err.message ||
-          "Beklenmeyen bir hata oluştu."
+          "Makine verileri yüklenemedi."
       );
     } finally {
-      setLoading(false);
+      setAnalysisLoading(false);
     }
+  }
+
+  loadMachineDashboard();
+}, [
+  machineId,
+  timestamp,
+  windowMinutes,
+]);
+
+
+  async function handleSubmit(event) {
+  event.preventDefault();
+
+  if (!question.trim()) {
+    setError(
+      "Lütfen bakım asistanına bir soru yazın."
+    );
+    return;
+  }
+
+  setLoading(true);
+  setError("");
+
+  try {
+    const response =
+      await askAssistant({
+        machineId,
+        question: question.trim(),
+        timestamp:
+          toBackendTimestamp(timestamp),
+        windowMinutes:
+          Number(windowMinutes),
+        topK: 5,
+      });
+
+    setResult(response);
+  } catch (err) {
+    setError(
+      err.message ||
+        "Beklenmeyen bir hata oluştu."
+    );
+  } finally {
+    setLoading(false);
+  }
   }
 
 
   const deterministic =
-    result?.deterministic_analysis;
+      analysis;
 
   const evidence =
     deterministic?.evidence || {};
@@ -882,8 +1034,28 @@ const selectedStation =
 
         </section>
 
+        {analysisLoading && (
+          <section className="empty-state">
+             <div className="loader" />
 
-        {!result && (
+              <h2>
+               Makine analizi yükleniyor
+               </h2>
+
+                 <p>
+                Sensör ölçümleri ve deterministik
+                analiz sonuçları hazırlanıyor.
+                </p>
+           </section>
+        )}
+        {analysisError && (
+          <div className="error-message">
+            {analysisError}
+          </div>
+        )}
+
+
+        {!analysis && !analysisLoading && (
           <section className="empty-state">
             <div className="empty-icon">
               ◇
