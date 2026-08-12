@@ -46,6 +46,21 @@ function StatusBadge({ status }) {
   );
 }
 
+function getAssetStatusClass(status) {
+  if (!status) {
+    return "unknown-dot";
+  }
+
+  if (status === "critical") {
+    return "critical-dot";
+  }
+
+  if (status === "warning") {
+    return "warning-dot";
+  }
+
+  return "normal-dot";
+}
 
 function MetricCard({
   title,
@@ -183,115 +198,317 @@ function App() {
   return (
     <div className="app-shell">
 
-      <aside className="sidebar">
+    <aside className="sidebar">
 
-        <div>
-          <div className="brand">
-            <div className="brand-icon">
-              IOT
-            </div>
+  <div>
+    <div className="brand">
+      <div className="brand-mark">
+        <span>IM</span>
+      </div>
 
-            <div>
-              <strong>
-                Maintenance
-              </strong>
+      <div className="brand-copy">
+        <strong>
+          IoT Maintenance
+        </strong>
 
-              <span>
-                Assistant
-              </span>
-            </div>
-          </div>
-
-
-          <div className="sidebar-section">
-            <p className="sidebar-label">
-              Varlık Hiyerarşisi
-            </p>
-
-            <div className="asset-tree">
-
-              <div className="asset-row plant">
-                <span className="asset-symbol">
-                  ◫
-                </span>
-                PLANT_01
-              </div>
-
-              <div className="asset-row station">
-                <span className="asset-symbol">
-                  ├
-                </span>
-                STATION_01
-              </div>
-
-              <button
-                type="button"
-                className="asset-row machine active"
-                onClick={() =>
-                  setMachineId("MOTOR_A")
-                }
-              >
-                <span className="asset-symbol">
-                  └
-                </span>
-                MOTOR_A
-              </button>
-
-              <div className="asset-row station muted">
-                <span className="asset-symbol">
-                  └
-                </span>
-                STATION_02
-              </div>
-
-            </div>
-          </div>
-        </div>
+        <span>
+          Decision Support
+        </span>
+      </div>
+    </div>
 
 
-        <div className="backend-status">
-          <span className="online-dot" />
+    <nav className="main-navigation">
+
+      <div className="nav-group">
+        <p className="nav-group-title">
+          GENEL
+        </p>
+
+        <button
+          type="button"
+          className="nav-item active"
+        >
+          <span className="nav-icon">
+            ◫
+          </span>
+
+          Dashboard
+        </button>
+      </div>
+
+
+      <div className="nav-group">
+        <p className="nav-group-title">
+          İZLEME
+        </p>
+
+        <button
+          type="button"
+          className="nav-item"
+        >
+          <span className="nav-icon">
+            ◉
+          </span>
+
+          Varlıklar
+        </button>
+
+        <button
+          type="button"
+          className="nav-item"
+        >
+          <span className="nav-icon">
+            △
+          </span>
+
+          Alarmlar
+
+          {deterministic?.active_alarms?.length > 0 && (
+            <span className="nav-counter">
+              {
+                deterministic
+                  .active_alarms
+                  .length
+              }
+            </span>
+          )}
+        </button>
+      </div>
+
+
+      <div className="nav-group">
+        <p className="nav-group-title">
+          BAKIM
+        </p>
+
+        <button
+          type="button"
+          className="nav-item"
+        >
+          <span className="nav-icon">
+            ✦
+          </span>
+
+          Bakım Asistanı
+        </button>
+      </div>
+
+
+      <div className="nav-group">
+        <p className="nav-group-title">
+          GÖRSELLEŞTİRME
+        </p>
+
+        <button
+          type="button"
+          className="nav-item nav-item-disabled"
+          disabled
+        >
+          <span className="nav-icon">
+            ◇
+          </span>
+
+          Fabrika Layout
+
+          <span className="coming-soon">
+            Yakında
+          </span>
+        </button>
+      </div>
+
+    </nav>
+
+
+    <div className="asset-section">
+
+      <div className="asset-section-header">
+        <p className="nav-group-title">
+          VARLIK HİYERARŞİSİ
+        </p>
+
+        <span className="asset-count">
+          1 Makine
+        </span>
+      </div>
+
+
+      <div className="asset-tree">
+
+        <div className="asset-row plant">
+          <span className="asset-status-dot unknown-dot" />
 
           <div>
             <strong>
-              Backend
+              PLANT_01
             </strong>
 
             <small>
-              FastAPI bağlantısı
+              Demo Factory
             </small>
           </div>
         </div>
 
-      </aside>
+
+        <div className="tree-connector">
+          <span />
+        </div>
+
+
+        <div className="asset-row station">
+          <span className="asset-node-icon">
+            S
+          </span>
+
+          <div>
+            <strong>
+              STATION_01
+            </strong>
+
+            <small>
+              Production Station
+            </small>
+          </div>
+        </div>
+
+
+        <button
+          type="button"
+          className="asset-row machine active"
+          onClick={() =>
+            setMachineId("MOTOR_A")
+          }
+        >
+          <span
+            className={`asset-status-dot ${getAssetStatusClass(
+    deterministic?.overall_status)
+            }`}
+          />
+
+          <div>
+            <strong>
+              MOTOR_A
+            </strong>
+
+            <small>
+              Electric Motor
+            </small>
+          </div>
+        </button>
+
+
+        <div className="asset-row station disabled-asset">
+          <span className="asset-node-icon">
+            S
+          </span>
+
+          <div>
+            <strong>
+              STATION_02
+            </strong>
+
+            <small>
+              Makine bulunmuyor
+            </small>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+
+  <div className="sidebar-footer">
+
+    <div className="system-health">
+      <span className="online-dot" />
+
+      <div>
+        <strong>
+          Sistem Çevrimiçi
+        </strong>
+
+        <small>
+          FastAPI + RAG
+        </small>
+      </div>
+    </div>
+
+  </div>
+
+</aside>
 
 
       <main className="main-content">
 
-        <header className="page-header">
-          <div>
-            <p className="eyebrow">
-              ENDÜSTRİYEL IOT BAKIM KARAR DESTEK
-            </p>
+<header className="page-header">
 
-            <h1>
-              Motor A
-            </h1>
+  <div>
+    <div className="breadcrumbs">
+      <span>
+        PLANT_01
+      </span>
 
-            <p className="page-description">
-              Sensör analizi, deterministik teşhis
-              ve teknik doküman destekli bakım asistanı
-            </p>
-          </div>
+      <span className="breadcrumb-separator">
+        /
+      </span>
 
-          {deterministic && (
-            <StatusBadge
-              status={
-                deterministic.overall_status
-              }
-            />
-          )}
-        </header>
+      <span>
+        STATION_01
+      </span>
+
+      <span className="breadcrumb-separator">
+        /
+      </span>
+
+      <strong>
+        MOTOR_A
+      </strong>
+    </div>
+
+
+    <div className="machine-heading">
+      <div>
+        <p className="eyebrow">
+          MAKİNE DETAYI
+        </p>
+
+        <h1>
+          Motor A
+        </h1>
+      </div>
+
+
+      {deterministic && (
+        <StatusBadge
+          status={
+            deterministic.overall_status
+          }
+        />
+      )}
+    </div>
+
+
+    <p className="page-description">
+      Gerçek zamanlı sensör analizi,
+      deterministik teşhis ve teknik
+      doküman destekli bakım karar desteği
+    </p>
+  </div>
+
+
+  <div className="header-actions">
+
+    <div className="connection-status">
+      <span className="online-dot" />
+
+      API yapılandırıldı
+    </div>
+
+  </div>
+
+</header>
 
 
         <section className="configuration-card">
