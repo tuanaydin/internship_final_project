@@ -26,13 +26,19 @@ import { getMeasurementsAt } from "./api/measurements";
 
 
 const DEFAULT_QUESTION =
-  "Motor-A neden kritik durumda ve hangi bakım işlemleri yapılmalı?";
+  "Seçili ekipmanın mevcut durumu nedir ve hangi bakım kontrolleri önerilir?";
 
 
 const TREND_LABELS = {
   increasing: "Artıyor",
   decreasing: "Azalıyor",
   stable: "Stabil",
+};
+
+const CONFIDENCE_LABELS = {
+  high: "Yüksek Güven",
+  medium: "Orta Güven",
+  low: "Düşük Güven",
 };
 
 
@@ -737,6 +743,13 @@ const latestChartPoint =
 const activeSensorValue =
   latestChartPoint?.[activeSensor.dataKey];
 
+const hasActiveSensorData =
+  chartData.some(
+    (point) =>
+      point[activeSensor.dataKey] !== null &&
+      point[activeSensor.dataKey] !== undefined
+  );
+
 const allMachines =
   Object.values(machinesByStation).flat();
 
@@ -860,21 +873,24 @@ const selectedStation =
           GÖRSELLEŞTİRME
         </p>
 
-        <button
-          type="button"
-          className="nav-item nav-item-disabled"
-          disabled
-        >
-          <span className="nav-icon">
-            ◇
-          </span>
+<button
+  type="button"
+  className="nav-item"
+  onClick={() =>
+    document
+      .getElementById("factory-layout")
+      ?.scrollIntoView({
+        behavior: "smooth",
+        block: "start",
+      })
+  }
+>
+  <span className="nav-icon">
+    ◇
+  </span>
 
-          Fabrika Layout
-
-          <span className="coming-soon">
-            Yakında
-          </span>
-        </button>
+  Fabrika Layout
+</button>
       </div>
 
     </nav>
@@ -888,7 +904,7 @@ const selectedStation =
         </p>
 
         <span className="asset-count">
-          {machineCount} Makine
+          {machineCount} Varlık
         </span>
       </div>
 
@@ -980,13 +996,12 @@ const selectedStation =
                 >
 
                   <span
-                    className={`asset-status-dot ${
-                      machineId === machine.id
-                        ? getAssetStatusClass(
-                            deterministic?.overall_status
-                          )
-                        : "unknown-dot"
-                    }`}
+                    className={`asset-status-dot ${getAssetStatusClass(
+  layoutDiagnostics?.[
+    machine.id
+  ]?.threshold_analysis
+    ?.overall_status
+)}`}
                   />
 
                   <div>
@@ -1080,7 +1095,7 @@ const selectedStation =
     <div className="machine-heading">
       <div>
         <p className="eyebrow">
-          MAKİNE DETAYI
+            VARLIK DETAYI
         </p>
 
         <h1>
@@ -1124,7 +1139,7 @@ const selectedStation =
 
           <div className="form-field">
             <label>
-              Makine
+               Varlık
             </label>
 
  <select
@@ -1151,7 +1166,7 @@ const selectedStation =
     ))
   ) : (
     <option value="">
-      Makine bulunamadı
+      Varlık bulunamadı
     </option>
   )}
 </select>
@@ -1212,7 +1227,7 @@ const selectedStation =
             {layoutError}
           </div>
         )}
-
+  <div id="factory-layout">
         <FactoryLayout
           hierarchy={assetHierarchy}
           diagnosticsByMachine={
@@ -1227,6 +1242,7 @@ const selectedStation =
           }}
           loading={layoutLoading}
         />
+</div>  
 
 
 
@@ -1236,7 +1252,7 @@ const selectedStation =
              <div className="loader" />
 
               <h2>
-               Makine analizi yükleniyor
+               Varlık analizi yükleniyor
                </h2>
 
                  <p>
@@ -1309,9 +1325,11 @@ const selectedStation =
     </span>
 
     <span className="confidence-chip">
-      {deterministic.confidence === "high"
-        ? "Yüksek Güven"
-        : deterministic.confidence || "-"}
+  {CONFIDENCE_LABELS[
+    deterministic.confidence
+  ] ||
+    deterministic.confidence ||
+    "-"}
     </span>
   </div>
 
@@ -1604,92 +1622,97 @@ const selectedStation =
 
       <div className="chart-container chart-container-large">
 
-        <ResponsiveContainer
-          width="100%"
-          height="100%"
-        >
-          <LineChart
-            data={chartData}
-            margin={{
-              top: 10,
-              right: 15,
-              left: -5,
-              bottom: 0,
-            }}
-          >
+  {hasActiveSensorData ? (
+    <ResponsiveContainer
+      width="100%"
+      height="100%"
+    >
+      <LineChart
+        data={chartData}
+        margin={{
+          top: 10,
+          right: 15,
+          left: -5,
+          bottom: 0,
+        }}
+      >
+        <CartesianGrid
+          strokeDasharray="3 3"
+          vertical={false}
+          stroke="#eaecf0"
+        />
 
-            <CartesianGrid
-              strokeDasharray="3 3"
-              vertical={false}
-              stroke="#eaecf0"
-            />
+        <XAxis
+          dataKey="time"
+          tick={{
+            fontSize: 9,
+            fill: "#98a2b3",
+          }}
+          axisLine={false}
+          tickLine={false}
+          minTickGap={35}
+        />
 
+        <YAxis
+          tick={{
+            fontSize: 9,
+            fill: "#98a2b3",
+          }}
+          axisLine={false}
+          tickLine={false}
+          domain={[
+            (dataMin) =>
+              dataMin - activeSensor.padding,
 
-            <XAxis
-              dataKey="time"
-              tick={{
-                fontSize: 9,
-                fill: "#98a2b3",
-              }}
-              axisLine={false}
-              tickLine={false}
-              minTickGap={35}
-            />
+            (dataMax) =>
+              dataMax + activeSensor.padding,
+          ]}
+          tickFormatter={(value) =>
+            activeSensor.axisDecimals === 0
+              ? Math.round(value)
+              : Number(value).toFixed(
+                  activeSensor.axisDecimals
+                )
+          }
+        />
 
+        <Tooltip
+          labelFormatter={(label) =>
+            `Saat: ${label}`
+          }
+          formatter={(value) => [
+            `${Number(value).toFixed(
+              activeSensor.valueDecimals
+            )} ${activeSensor.unit}`,
+            activeSensor.label,
+          ]}
+        />
 
-            <YAxis
-              tick={{
-                fontSize: 9,
-                fill: "#98a2b3",
-              }}
-              axisLine={false}
-              tickLine={false}
-              domain={[
-                (dataMin) =>
-                  dataMin -
-                  activeSensor.padding,
+        <Line
+          type="monotone"
+          dataKey={activeSensor.dataKey}
+          stroke="#1769e0"
+          strokeWidth={2}
+          dot={false}
+          activeDot={{ r: 4 }}
+          animationDuration={350}
+        />
+      </LineChart>
+    </ResponsiveContainer>
+  ) : (
+    <div className="chart-no-data">
+      <strong>
+        Bu sensör için veri bulunmuyor
+      </strong>
 
-                (dataMax) =>
-                  dataMax +
-                  activeSensor.padding,
-              ]}
-              tickFormatter={(value) =>
-                activeSensor.axisDecimals === 0
-                  ? Math.round(value)
-                  : Number(value).toFixed(
-                      activeSensor.axisDecimals
-                    )
-              }
-            />
+      <span>
+        Seçili varlık bu sensörü
+        desteklemiyor veya ölçüm mevcut değil.
+      </span>
+    </div>
+  )}
 
-
-            <Tooltip
-              labelFormatter={(label) =>
-                `Saat: ${label}`
-              }
-              formatter={(value) => [
-                `${Number(value).toFixed(
-                  activeSensor.valueDecimals
-                )} ${activeSensor.unit}`,
-                activeSensor.label,
-              ]}
-            />
-
-
-            <Line
-              type="monotone"
-              dataKey={activeSensor.dataKey}
-              stroke="#1769e0"
-              strokeWidth={2}
-              dot={false}
-              activeDot={{ r: 4 }}
-              animationDuration={350}
-            />
-
-          </LineChart>
-        </ResponsiveContainer>
-
-      </div>
+</div>
 
     </article>
 
@@ -1748,7 +1771,7 @@ const selectedStation =
                   event.target.value
                 )
               }
-              placeholder="Motor-A hakkında bakım sorusu sorun..."
+              placeholder={`${selectedMachine?.name ||machineId ||"Seçili ekipman"} hakkında bakım sorusu sorun...`}
               rows={4}
             />
 

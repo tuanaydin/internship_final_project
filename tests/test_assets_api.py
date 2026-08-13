@@ -23,14 +23,32 @@ def test_station_list_preserves_current_hierarchy(client: TestClient) -> None:
     assert all(station["plant_id"] == "PLANT_01" for station in stations)
 
 
-def test_station_machine_list_contains_motor_a(client: TestClient) -> None:
-    response = client.get("/api/v1/stations/STATION_01/machines")
+def test_station_machine_list_contains_station_assets(
+    client: TestClient,
+) -> None:
+    """
+    STATION_01 altında Motor A, Pump B ve Valve C
+    ekipmanlarının API üzerinden döndüğünü doğrular.
+    """
+
+    response = client.get(
+        "/api/v1/stations/STATION_01/machines"
+    )
 
     assert response.status_code == 200
+
     machines = response.json()
-    assert [machine["id"] for machine in machines] == ["MOTOR_A"]
-    assert machines[0]["name"] == "Motor A"
-    assert machines[0]["type"] == "electric_motor"
+
+    machine_ids = [
+        machine["id"]
+        for machine in machines
+    ]
+
+    assert machine_ids == [
+        "MOTOR_A",
+        "PUMP_B",
+        "VALVE_C",
+    ]
 
 
 def test_machine_detail_includes_parent_ids(client: TestClient) -> None:
@@ -106,11 +124,38 @@ def test_plant_hierarchy_contains_station_and_machine(
 
     # Spatial bilgi henüz assets.yaml
     # içerisine eklenmedi.
+    # Motor A'nın fabrika layout'u üzerindeki
+# konum bilgisini doğrular.
     assert motor_a["spatial"] == {
-    "x_pct": 68.0,
+    "x_pct": 23.0,
     "y_pct": 42.0,
-    }
+}
+    pump_b = next(
+    machine
+    for machine in machines
+    if machine["id"] == "PUMP_B"
+)
 
+    assert pump_b["name"] == "Pump B"
+    assert pump_b["type"] == "centrifugal_pump"
+    assert pump_b["spatial"] == {
+    "x_pct": 43.0,
+    "y_pct": 42.0,
+}
+
+
+    valve_c = next(
+     machine
+        for machine in machines
+        if machine["id"] == "VALVE_C"
+)
+
+    assert valve_c["name"] == "Valve C"
+    assert valve_c["type"] == "control_valve"
+    assert valve_c["spatial"] == {
+    "x_pct": 61.0,
+    "y_pct": 42.0,
+}
 
 def test_unknown_plant_hierarchy_returns_404(
     client,

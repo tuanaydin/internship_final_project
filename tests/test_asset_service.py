@@ -35,11 +35,22 @@ def test_service_results_cannot_mutate_cached_catalog() -> None:
 
 
 def test_machine_list_returns_machines_for_station() -> None:
+    """
+    STATION_01 altında tanımlanan tüm ekipmanların
+    asset servisinden döndüğünü doğrular.
+    """
+
     machines = list_machines(
         station_id="STATION_01"
     )
 
-    assert [
+    machine_ids = [
         machine["id"]
         for machine in machines
-    ] == ["MOTOR_A"]
+    ]
+
+    assert machine_ids == [
+        "MOTOR_A",
+        "PUMP_B",
+        "VALVE_C",
+    ]

@@ -13,3 +13,15 @@ machines:
       sensor: temperature_c
       comparison_window: 3
       deviation_threshold: 30.0
+  PUMP_B:
+
+    required_fields:
+      - temperature_c
+      - vibration_mm_s
+
+
+  VALVE_C:
+
+    required_fields:
+      - temperature_c
+      - current_a

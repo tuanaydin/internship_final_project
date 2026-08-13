@@ -227,38 +227,65 @@ def analyze_data_quality(
 
     issues = []
 
+    # Eksik veri kontrolü
     missing_issue = detect_missing(
         latest=latest,
         required_fields=config["required_fields"],
     )
 
     if missing_issue:
-        issues.append(missing_issue)
+        issues.append(
+            missing_issue
+        )
 
-    stuck_config = config["stuck"]
-
-    stuck_issue = detect_stuck(
-        measurements=measurements,
-        sensor_name=stuck_config["sensor"],
-        window_size=stuck_config["window_size"],
+    # Stuck sensör kontrolü
+    # İlgili makine için config tanımlı değilse
+    # bu kontrol atlanır.
+    stuck_config = config.get(
+        "stuck"
     )
 
-    if stuck_issue:
-        issues.append(stuck_issue)
+    if stuck_config:
+        stuck_issue = detect_stuck(
+            measurements=measurements,
+            sensor_name=stuck_config[
+                "sensor"
+            ],
+            window_size=stuck_config[
+                "window_size"
+            ],
+        )
 
-    spike_config = config["spike"]
+        if stuck_issue:
+            issues.append(
+                stuck_issue
+            )
 
-    spike_issue = detect_suspected_spike(
-        measurements=measurements,
-        sensor_name=spike_config["sensor"],
-        comparison_window=spike_config["comparison_window"],
-        deviation_threshold=spike_config[
-            "deviation_threshold"
-        ],
+    # Ani sıçrama kontrolü
+    # İlgili makine için config tanımlı değilse
+    # bu kontrol atlanır.
+    spike_config = config.get(
+        "spike"
     )
 
-    if spike_issue:
-        issues.append(spike_issue)
+    if spike_config:
+        spike_issue = detect_suspected_spike(
+            measurements=measurements,
+            sensor_name=spike_config[
+                "sensor"
+            ],
+            comparison_window=spike_config[
+                "comparison_window"
+            ],
+            deviation_threshold=spike_config[
+                "deviation_threshold"
+            ],
+        )
+
+        if spike_issue:
+            issues.append(
+                spike_issue
+            )
 
     if issues:
         status = "unreliable"

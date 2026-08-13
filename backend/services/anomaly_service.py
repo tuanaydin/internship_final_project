@@ -195,46 +195,81 @@ def analyze_measurement(
     measurement: dict[str, Any],
 ) -> dict[str, Any]:
     """
-    Tek bir makine ölçümünü eşiklere göre analiz eder.
+    Makinenin mevcut ölçümünü,
+    tanımlı sensör eşiklerine göre değerlendirir.
     """
 
-    thresholds = get_machine_thresholds(machine_id)
+    thresholds = get_machine_thresholds(
+        machine_id
+    )
 
     results = []
 
-    for sensor_name in [
+    standard_sensors = [
         "temperature_c",
         "vibration_mm_s",
         "current_a",
-    ]:
+    ]
+
+    for sensor_name in standard_sensors:
+        sensor_config = thresholds.get(
+            sensor_name
+        )
+
+        # İlgili asset için threshold tanımlı değilse
+        # sensör değerlendirmeye alınmaz.
+        if sensor_config is None:
+            continue
+
         result = evaluate_standard_sensor(
             sensor_name=sensor_name,
-            value=measurement.get(sensor_name),
-            config=thresholds[sensor_name],
+            value=measurement.get(
+                sensor_name
+            ),
+            config=sensor_config,
         )
 
         results.append(result)
 
-    load_result = evaluate_load(
-        value=measurement.get("load_pct"),
-        operating_state=measurement.get("operating_state"),
-        config=thresholds["load_pct"],
+    load_config = thresholds.get(
+        "load_pct"
     )
 
-    results.append(load_result)
+    if load_config is not None:
+        load_result = evaluate_load(
+            value=measurement.get(
+                "load_pct"
+            ),
+            operating_state=measurement.get(
+                "operating_state"
+            ),
+            config=load_config,
+        )
 
-    overall_status = calculate_overall_status(results)
+        results.append(load_result)
+
+    overall_status = (
+        calculate_overall_status(
+            results
+        )
+    )
 
     active_alarms = [
         result["alarm_code"]
         for result in results
-        if result.get("alarm_code") is not None
+        if result.get(
+            "alarm_code"
+        ) is not None
     ]
 
     return {
         "machine_id": machine_id,
-        "timestamp": measurement.get("timestamp"),
-        "operating_state": measurement.get("operating_state"),
+        "timestamp": measurement.get(
+            "timestamp"
+        ),
+        "operating_state": measurement.get(
+            "operating_state"
+        ),
         "overall_status": overall_status,
         "active_alarms": active_alarms,
         "sensor_analysis": results,

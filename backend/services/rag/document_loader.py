@@ -21,25 +21,25 @@ SUPPORTED_EXTENSIONS = {
 
 
 
-DOCUMENT_METADATA = {
-    "01_Motor-A_Teknik_Kullanim_ve_Izleme_Kilavuzu": {
-        "document_id": "MA-MAN-001",
+DOCUMENT_TYPE_BY_PREFIX = {
+    "01_": {
+        "code": "MAN",
         "document_type": "technical_manual",
     },
-    "02_Motor-A_Alarm_ve_Veri_Kalitesi_Katalogu": {
-        "document_id": "MA-ALM-001",
+    "02_": {
+        "code": "ALM",
         "document_type": "alarm_catalog",
     },
-    "03_Motor-A_Bakim_ve_Ilk_Mudahale_Prosedurleri": {
-        "document_id": "MA-MNT-001",
+    "03_": {
+        "code": "MNT",
         "document_type": "maintenance_procedure",
     },
-    "04_Motor-A_Ariza_Teshis_ve_Yonlendirme_Rehberi": {
-        "document_id": "MA-TRB-001",
+    "04_": {
+        "code": "TRB",
         "document_type": "troubleshooting_guide",
     },
-    "05_Motor-A_Gecmis_Olay_ve_Bakim_Kayitlari": {
-        "document_id": "MA-INC-001",
+    "05_": {
+        "code": "INC",
         "document_type": "incident_history",
     },
 }
@@ -182,20 +182,60 @@ def extract_pdf_pages(
     return pages
 
 ###Metadata Resolver
-def resolve_document_metadata(
-    file_path: Path,
-) -> dict[str, str]:
+def _get_document_prefix(
+    machine_id: str,
+) -> str:
     """
-    Dosya adına göre dokümanın kimliğini
-    ve tipini belirler.
+    Makine kimliğinden doküman prefix'i üretir.
+
+    Örnek:
+    MOTOR_A -> MA
+    PUMP_B  -> PB
+    VALVE_C -> VC
     """
 
-    metadata = DOCUMENT_METADATA.get(
-        file_path.stem
+    parts = [
+        part
+        for part in machine_id.split("_")
+        if part
+    ]
+
+    return "".join(
+        part[0].upper()
+        for part in parts
     )
 
-    if metadata:
-        return metadata.copy()
+
+def resolve_document_metadata(
+    file_path: Path,
+    machine_id: str,
+) -> dict[str, str]:
+    """
+    Dosya sırasına ve makine kimliğine göre
+    doküman kimliği ve tipini belirler.
+    """
+
+    document_prefix = _get_document_prefix(
+        machine_id
+    )
+
+    for (
+        file_prefix,
+        metadata,
+    ) in DOCUMENT_TYPE_BY_PREFIX.items():
+
+        if file_path.stem.startswith(
+            file_prefix
+        ):
+            return {
+                "document_id": (
+                    f"{document_prefix}-"
+                    f"{metadata['code']}-001"
+                ),
+                "document_type": metadata[
+                    "document_type"
+                ],
+            }
 
     return {
         "document_id": file_path.stem,
@@ -238,7 +278,8 @@ def load_machine_documents(
     for file_path in files:
 
         document_metadata = resolve_document_metadata(
-            file_path
+            file_path=file_path,
+            machine_id=machine_id,
         )
 
         base_metadata: dict[str, Any] = {

@@ -32,4 +32,40 @@ machines:
       warning_min: 92.0
       critical_min: 105.0
       warning_alarm: ALM-LOAD-01
-      critical_alarm: ALM-LOAD-01
+      critical_alarm: ALM-LOAD-02
+  PUMP_B:
+
+    temperature_c:
+      name: Pump Temperature
+      unit: "°C"
+      warning_min: 68.0
+      critical_min: 78.0
+      warning_alarm: ALM-PB-TEMP-01
+      critical_alarm: ALM-PB-TEMP-02
+
+    vibration_mm_s:
+      name: Pump Vibration
+      unit: "mm/s RMS"
+      warning_min: 4.0
+      critical_min: 7.0
+      warning_alarm: ALM-PB-VIB-01
+      critical_alarm: ALM-PB-VIB-02
+
+
+  VALVE_C:
+
+    temperature_c:
+      name: Actuator Temperature
+      unit: "°C"
+      warning_min: 55.0
+      critical_min: 65.0
+      warning_alarm: ALM-VC-TEMP-01
+      critical_alarm: ALM-VC-TEMP-02
+
+    current_a:
+      name: Actuator Current
+      unit: "A"
+      warning_min: 1.8
+      critical_min: 2.4
+      warning_alarm: ALM-VC-CUR-01
+      critical_alarm: ALM-VC-CUR-02

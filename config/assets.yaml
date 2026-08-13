@@ -37,8 +37,97 @@ stations:
             unit: "kW"
 
         spatial:
-            x_pct: 60
-            y_pct: 42
+          x_pct: 23
+          y_pct: 42
+
+
+      - id: PUMP_B
+        name: Pump B
+        type: centrifugal_pump
+
+        driven_by: MOTOR_A
+        downstream_asset: VALVE_C
+
+        data:
+          sensor_data: data/PLANT_01/STATION_01/PUMP_B/pump_b_dummy_sensor_data.csv
+          reference_dataset: data/PLANT_01/STATION_01/PUMP_B/pump_b_dummy_dataset.xlsx
+
+        knowledge_base:
+          path: knowledge_base/PLANT_01/STATION_01/PUMP_B
+
+        sensors:
+          - id: TEMP_B
+            type: temperature
+            unit: "°C"
+
+          - id: VIB_B
+            type: vibration
+            unit: "mm/s RMS"
+
+          - id: SUC_P_B
+            type: suction_pressure
+            unit: "bar"
+
+          - id: DIS_P_B
+            type: discharge_pressure
+            unit: "bar"
+
+          - id: FLOW_B
+            type: flow
+            unit: "m3/h"
+
+        spatial:
+          x_pct: 43
+          y_pct: 42
+
+
+      - id: VALVE_C
+        name: Valve C
+        type: control_valve
+
+        upstream_asset: PUMP_B
+        downstream_asset: PROCESS_OUT
+
+        data:
+          sensor_data: data/PLANT_01/STATION_01/VALVE_C/valve_c_dummy_sensor_data.csv
+          reference_dataset: data/PLANT_01/STATION_01/VALVE_C/valve_c_dummy_dataset.xlsx
+
+        knowledge_base:
+          path: knowledge_base/PLANT_01/STATION_01/VALVE_C
+
+        sensors:
+          - id: TEMP_C
+            type: actuator_temperature
+            unit: "°C"
+
+          - id: CUR_C
+            type: actuator_current
+            unit: "A"
+
+          - id: CMD_C
+            type: valve_command
+            unit: "%"
+
+          - id: POS_C
+            type: valve_position
+            unit: "%"
+
+          - id: P_UP_C
+            type: upstream_pressure
+            unit: "bar"
+
+          - id: P_DOWN_C
+            type: downstream_pressure
+            unit: "bar"
+
+          - id: FLOW_C
+            type: flow
+            unit: "m3/h"
+
+        spatial:
+          x_pct: 61
+          y_pct: 42
+
 
   - id: STATION_02
     name: Production Station 02
