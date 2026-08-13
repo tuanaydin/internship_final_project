@@ -46,3 +46,27 @@ export function getMachines(stationId) {
     `${API_BASE_URL}/api/v1/stations/${stationId}/machines`
   );
 }
+
+
+export async function getPlantHierarchy(plantId) {
+  const baseUrl =
+    import.meta.env.VITE_API_BASE_URL ||
+    "http://127.0.0.1:8000";
+
+  const response = await fetch(
+    `${baseUrl}/api/v1/plants/${plantId}/hierarchy`
+  );
+
+  if (!response.ok) {
+    const errorData = await response
+      .json()
+      .catch(() => ({}));
+
+    throw new Error(
+      errorData.detail ||
+        "Fabrika hiyerarşisi yüklenemedi."
+    );
+  }
+
+  return response.json();
+}

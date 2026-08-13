@@ -11,8 +11,8 @@ from docx.text.paragraph import Paragraph
 from langchain_core.documents import Document
 
 from backend.core.config import PROJECT_ROOT
-from backend.services.asset_service import get_machine
-
+#from backend.services.asset_service import get_machine
+from backend.services.asset_service import get_machine_by_id
 
 SUPPORTED_EXTENSIONS = {
     ".docx",
@@ -55,7 +55,7 @@ def get_knowledge_base_path(
     knowledge base klasörünü bulur.
     """
 
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise ValueError(
@@ -212,7 +212,7 @@ def load_machine_documents(
     LangChain Document nesnelerine dönüştürür.
     """
 
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise ValueError(

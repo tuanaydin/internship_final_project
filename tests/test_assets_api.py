@@ -61,3 +61,65 @@ def test_unknown_assets_keep_existing_404_contract(client: TestClient) -> None:
 
         assert response.status_code == 404
         assert response.json() == {"detail": expected_detail}
+
+
+def test_plant_hierarchy_contains_station_and_machine(
+    client,
+) -> None:
+    response = client.get(
+        "/api/v1/plants/PLANT_01/hierarchy"
+    )
+
+    assert response.status_code == 200
+
+    data = response.json()
+
+    assert data["id"] == "PLANT_01"
+    assert data["name"] == "Demo Factory"
+
+    stations = data["stations"]
+
+    station_01 = next(
+        station
+        for station in stations
+        if station["id"] == "STATION_01"
+    )
+
+    assert (
+        station_01["plant_id"]
+        == "PLANT_01"
+    )
+
+    machines = station_01["machines"]
+
+    motor_a = next(
+        machine
+        for machine in machines
+        if machine["id"] == "MOTOR_A"
+    )
+
+    assert motor_a["name"] == "Motor A"
+    assert (
+        motor_a["type"]
+        == "electric_motor"
+    )
+
+    # Spatial bilgi henüz assets.yaml
+    # içerisine eklenmedi.
+    assert motor_a["spatial"] == {
+    "x_pct": 68.0,
+    "y_pct": 42.0,
+    }
+
+
+def test_unknown_plant_hierarchy_returns_404(
+    client,
+) -> None:
+    response = client.get(
+        "/api/v1/plants/UNKNOWN_PLANT/hierarchy"
+    )
+
+    assert response.status_code == 404
+    assert response.json() == {
+        "detail": "Plant not found."
+    }

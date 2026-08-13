@@ -1,15 +1,10 @@
 from fastapi import APIRouter, HTTPException
 
+from backend.services.asset_service import get_machine
+from backend.services.data_service import get_latest_measurement
+
 from backend.schemas.asset import MachineSchema
-from backend.schemas.sensor import (
-    LatestMeasurementResponse,
-)
-from backend.services.asset_service import (
-    get_machine_by_id,
-)
-from backend.services.data_service import (
-    get_latest_measurement,
-)
+from backend.schemas.sensor import LatestMeasurementResponse
 
 
 router = APIRouter(
@@ -20,13 +15,7 @@ router = APIRouter(
 
 @router.get("/machines/{machine_id}",response_model=MachineSchema,)
 def machine_detail(machine_id: str):
-    """
-    ID bilgisine göre makine detayını döndürür.
-    """
-
-    machine = get_machine_by_id(
-        machine_id
-    )
+    machine = get_machine(machine_id)
 
     if machine is None:
         raise HTTPException(
@@ -37,20 +26,9 @@ def machine_detail(machine_id: str):
     return machine
 
 
-@router.get(
-    "/machines/{machine_id}/latest",
-    response_model=LatestMeasurementResponse,
-)
-def machine_latest_measurement(
-    machine_id: str,
-):
-    """
-    Makinenin en güncel sensör ölçümünü döndürür.
-    """
-
-    machine = get_machine_by_id(
-        machine_id
-    )
+@router.get("/machines/{machine_id}/latest",response_model=LatestMeasurementResponse,)
+def machine_latest_measurement(machine_id: str):
+    machine = get_machine(machine_id)
 
     if machine is None:
         raise HTTPException(
@@ -59,24 +37,18 @@ def machine_latest_measurement(
         )
 
     try:
-        measurement = (
-            get_latest_measurement(
-                machine_id
-            )
-        )
+        measurement = get_latest_measurement(machine_id)
 
     except FileNotFoundError as exc:
         raise HTTPException(
             status_code=404,
             detail=str(exc),
-        ) from exc
+        )
 
     if measurement is None:
         raise HTTPException(
             status_code=404,
-            detail=(
-                "No sensor measurements found."
-            ),
+            detail="No sensor measurements found.",
         )
 
     return {

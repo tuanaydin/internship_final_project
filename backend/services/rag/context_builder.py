@@ -5,7 +5,9 @@ from typing import Any
 
 from langchain_core.documents import Document
 
-from backend.services.asset_service import get_machine
+#from backend.services.asset_service import get_machine
+
+from backend.services.asset_service import get_machine_by_id
 
 
 def _format_deterministic_analysis(
@@ -89,7 +91,7 @@ def build_rag_context(
     context içerisinde birleştirir.
     """
 
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise ValueError(

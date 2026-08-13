@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException
 
 from backend.services.anomaly_service import analyze_measurement
-from backend.services.asset_service import get_machine
+#from backend.services.asset_service import get_machine
+
+from backend.services.asset_service import get_machine_by_id
 from backend.services.data_quality_service import analyze_data_quality
 from backend.services.trend_service import analyze_trends
 from backend.services.diagnostic_service import diagnose_machine
@@ -27,7 +29,7 @@ router = APIRouter(
 
 @router.get("/machines/{machine_id}/analysis/latest",response_model=LatestAnalysisResponse,)
 def machine_latest_analysis(machine_id: str):
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise HTTPException(
@@ -64,7 +66,7 @@ def machine_latest_analysis(machine_id: str):
 
 @router.get("/machines/{machine_id}/data-quality/latest",response_model=LatestDataQualityResponse,)
 def machine_latest_data_quality(machine_id: str):
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise HTTPException(
@@ -103,14 +105,12 @@ def machine_latest_data_quality(machine_id: str):
         "data_quality": result,
     }
 
-@router.get(
-    "/machines/{machine_id}/data-quality/at"
-)
+@router.get("/machines/{machine_id}/data-quality/at")
 def machine_data_quality_at(
     machine_id: str,
     timestamp: str,
 ):
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise HTTPException(
@@ -155,15 +155,13 @@ def machine_data_quality_at(
     }
 
 
-@router.get(
-    "/machines/{machine_id}/trends/at"
-)
+@router.get("/machines/{machine_id}/trends/at")
 def machine_trends_at(
     machine_id: str,
     timestamp: str,
     window_minutes: int = 60,
 ):
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise HTTPException(
@@ -177,14 +175,18 @@ def machine_trends_at(
             detail="window_minutes must be greater than zero.",
         )
 
-    measurement_limit = (window_minutes // 5) + 1
-
     try:
-        measurements = get_measurements_until(
+        measurements = get_measurements_in_window(
             machine_id=machine_id,
             timestamp=timestamp,
-            limit=measurement_limit,
+            window_minutes=window_minutes,
         )
+
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
 
     except ValueError:
         raise HTTPException(
@@ -201,7 +203,9 @@ def machine_trends_at(
             detail="No measurements found.",
         )
 
-    trends = analyze_trends(measurements)
+    trends = analyze_trends(
+        measurements
+    )
 
     return {
         "plant_id": machine["plant_id"],
@@ -212,15 +216,13 @@ def machine_trends_at(
         "trend_analysis": trends,
     }
 
-@router.get(
-    "/machines/{machine_id}/diagnostics/at"
-)
+@router.get("/machines/{machine_id}/diagnostics/at")
 def machine_diagnostics_at(
     machine_id: str,
     timestamp: str,
     window_minutes: int = 60,
 ):
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise HTTPException(
@@ -234,14 +236,18 @@ def machine_diagnostics_at(
             detail="window_minutes must be greater than zero.",
         )
 
-    measurement_limit = (window_minutes // 5) + 1
-
     try:
-        measurements = get_measurements_until(
+        measurements = get_measurements_in_window(
             machine_id=machine_id,
             timestamp=timestamp,
-            limit=measurement_limit,
+            window_minutes=window_minutes,
         )
+
+    except FileNotFoundError as exc:
+        raise HTTPException(
+            status_code=404,
+            detail=str(exc),
+        ) from exc
 
     except ValueError:
         raise HTTPException(
@@ -261,9 +267,9 @@ def machine_diagnostics_at(
     latest_measurement = measurements[-1]
 
     threshold_analysis = analyze_measurement(
-    machine_id=machine_id,
-    measurement=latest_measurement,
-)
+        machine_id=machine_id,
+        measurement=latest_measurement,
+    )
 
     data_quality = analyze_data_quality(
         machine_id=machine_id,
@@ -275,11 +281,11 @@ def machine_diagnostics_at(
     )
 
     diagnosis = diagnose_machine(
-    measurement=latest_measurement,
-    trend_analysis=trend_analysis,
-    data_quality=data_quality,
-    threshold_analysis=threshold_analysis,
-)
+        measurement=latest_measurement,
+        trend_analysis=trend_analysis,
+        data_quality=data_quality,
+        threshold_analysis=threshold_analysis,
+    )
 
     return {
         "plant_id": machine["plant_id"],
@@ -302,7 +308,7 @@ def machine_measurements_at(
     timestamp: str,
     window_minutes: int = 60,
 ):
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise HTTPException(

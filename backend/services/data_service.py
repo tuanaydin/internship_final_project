@@ -5,7 +5,7 @@ from datetime import datetime,timedelta
 
 from typing import Any
 
-from backend.services.asset_service import get_machine
+from backend.services.asset_service import get_machine_by_id
 from backend.core.config import PROJECT_ROOT
 
 
@@ -30,7 +30,7 @@ def get_sensor_data_path(machine_id: str) -> Path:
     assets.yaml üzerinden makinenin sensör CSV yolunu bulur.
     """
 
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise ValueError(f"Machine not found: {machine_id}")

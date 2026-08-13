@@ -6,12 +6,8 @@ from backend.schemas.assistant import (
     AssistantAskRequest,
     AssistantAskResponse,
 )
-from backend.services.asset_service import (
-    get_machine,
-)
-from backend.services.rag.rag_service import (
-    answer_question_at,
-)
+from backend.services.asset_service import (get_machine_by_id)
+from backend.services.rag.rag_service import (answer_question_at,)
 
 
 router = APIRouter(
@@ -34,7 +30,7 @@ def ask_machine_assistant(
     kullanarak bakım sorusunu cevaplar.
     """
 
-    machine = get_machine(machine_id)
+    machine = get_machine_by_id(machine_id)
 
     if machine is None:
         raise HTTPException(

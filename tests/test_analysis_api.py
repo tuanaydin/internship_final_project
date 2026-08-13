@@ -1,5 +1,5 @@
 from fastapi.testclient import TestClient
-
+from backend.api.routes import analysis as analysis_routes
 
 def test_measurement_window_is_time_based_and_inclusive(
     client: TestClient,
@@ -96,3 +96,81 @@ def test_unknown_machine_analysis_returns_404(client: TestClient) -> None:
 
     assert response.status_code == 404
     assert response.json() == {"detail": "Machine not found."}
+
+
+
+def test_trends_and_diagnostics_use_time_based_window(
+    client,
+    monkeypatch,
+) -> None:
+    """
+    Trend ve diagnostik endpointlerinin kayıt sayısı
+    varsayımı yerine gerçek zaman penceresini
+    kullandığını doğrular.
+    """
+
+    original_function = (
+        analysis_routes.get_measurements_in_window
+    )
+
+    calls = []
+
+    def spy_get_measurements_in_window(
+        machine_id: str,
+        timestamp: str,
+        window_minutes: int,
+    ):
+        calls.append(
+            (
+                machine_id,
+                timestamp,
+                window_minutes,
+            )
+        )
+
+        return original_function(
+            machine_id=machine_id,
+            timestamp=timestamp,
+            window_minutes=window_minutes,
+        )
+
+    monkeypatch.setattr(
+            analysis_routes,
+            "get_measurements_in_window",
+            spy_get_measurements_in_window,
+        )
+
+    timestamp = "2026-07-27 20:00:00"
+    window_minutes = 300
+
+    trends_response = client.get(
+        "/api/v1/machines/MOTOR_A/trends/at",
+        params={
+            "timestamp": timestamp,
+            "window_minutes": window_minutes,
+        },
+    )
+
+    diagnostics_response = client.get(
+        "/api/v1/machines/MOTOR_A/diagnostics/at",
+        params={
+            "timestamp": timestamp,
+            "window_minutes": window_minutes,
+        },
+    )
+
+    assert trends_response.status_code == 200
+    assert diagnostics_response.status_code == 200
+
+    assert calls == [
+        (
+            "MOTOR_A",
+            timestamp,
+            window_minutes,
+        ),
+        (
+            "MOTOR_A",
+            timestamp,
+            window_minutes,
+        ),
+    ]

@@ -36,6 +36,10 @@ stations:
             type: active_power
             unit: "kW"
 
+        spatial:
+            x_pct: 60
+            y_pct: 42
+
   - id: STATION_02
     name: Production Station 02
     plant_id: PLANT_01

@@ -4,6 +4,12 @@ import ReactMarkdown from "react-markdown";
 import { askAssistant } from "./api/assistant";
 import { getDiagnosticsAt } from "./api/diagnostics";
 
+import FactoryLayout from "./components/FactoryLayout";
+
+import {
+  getPlantHierarchy,
+} from "./api/assets";
+
 import {
   LineChart,
   Line,
@@ -356,7 +362,35 @@ const [analysisError, setAnalysisError] =
 
   const [error, setError] =
     useState("");
-/*use effect*/ 
+
+// Factory Layout / Heat Map state'leri
+
+const [
+  assetHierarchy,
+  setAssetHierarchy,
+] = useState(null);
+
+const [
+  layoutDiagnostics,
+  setLayoutDiagnostics,
+] = useState({});
+
+const [
+  layoutLoading,
+  setLayoutLoading,
+] = useState(false);
+
+const [
+  layoutError,
+  setLayoutError,
+] = useState("");
+
+
+
+
+
+
+    /*use effect*/ 
 useEffect(() => {
   async function loadAssetHierarchy() {
     setAssetsLoading(true);
@@ -424,6 +458,39 @@ useEffect(() => {
   loadAssetHierarchy();
 }, []);
 
+useEffect(() => {
+  if (!plant?.id) {
+    return;
+  }
+
+  async function loadFactoryHierarchy() {
+    setLayoutError("");
+
+    try {
+      const hierarchy =
+        await getPlantHierarchy(
+          plant.id
+        );
+
+      setAssetHierarchy(
+        hierarchy
+      );
+    } catch (err) {
+      setAssetHierarchy(null);
+
+      setLayoutError(
+        err.message ||
+          "Fabrika yerleşimi yüklenemedi."
+      );
+    }
+  }
+
+  loadFactoryHierarchy();
+}, [plant?.id]);
+
+
+
+
 
 useEffect(() => {
   if (!machineId || !timestamp) {
@@ -483,6 +550,109 @@ useEffect(() => {
   loadMachineDashboard();
 }, [
   machineId,
+  timestamp,
+  windowMinutes,
+]);
+
+
+useEffect(() => {
+  if (
+    !assetHierarchy ||
+    !timestamp
+  ) {
+    return;
+  }
+
+  const machines =
+    assetHierarchy.stations.flatMap(
+      (station) =>
+        station.machines || []
+    );
+
+  const positionedMachines =
+    machines.filter(
+      (machine) =>
+        machine.spatial?.x_pct != null &&
+        machine.spatial?.y_pct != null
+    );
+
+  if (
+    positionedMachines.length === 0
+  ) {
+    setLayoutDiagnostics({});
+    return;
+  }
+
+  let cancelled = false;
+
+  async function loadLayoutDiagnostics() {
+    setLayoutLoading(true);
+    setLayoutError("");
+
+    try {
+      const backendTimestamp =
+        toBackendTimestamp(timestamp);
+
+      const results =
+        await Promise.all(
+          positionedMachines.map(
+            async (machine) => {
+              try {
+                const diagnostics =
+                  await getDiagnosticsAt({
+                    machineId: machine.id,
+                    timestamp:
+                      backendTimestamp,
+                    windowMinutes:
+                      Number(
+                        windowMinutes
+                      ),
+                  });
+
+                return [
+                  machine.id,
+                  diagnostics,
+                ];
+              } catch {
+                // Tek bir makinedeki veri problemi,
+                // tüm layout'un yüklenmesini engellemez.
+                return [
+                  machine.id,
+                  null,
+                ];
+              }
+            }
+          )
+        );
+
+      if (!cancelled) {
+        setLayoutDiagnostics(
+          Object.fromEntries(results)
+        );
+      }
+    } catch (err) {
+      if (!cancelled) {
+        setLayoutDiagnostics({});
+
+        setLayoutError(
+          err.message ||
+            "Makine durumları yüklenemedi."
+        );
+      }
+    } finally {
+      if (!cancelled) {
+        setLayoutLoading(false);
+      }
+    }
+  }
+
+  loadLayoutDiagnostics();
+
+  return () => {
+    cancelled = true;
+  };
+}, [
+  assetHierarchy,
   timestamp,
   windowMinutes,
 ]);
@@ -1033,6 +1203,33 @@ const selectedStation =
           </div>
 
         </section>
+
+
+        {/* Factory Layout / Heat Map */}
+
+        {layoutError && (
+          <div className="error-message">
+            {layoutError}
+          </div>
+        )}
+
+        <FactoryLayout
+          hierarchy={assetHierarchy}
+          diagnosticsByMachine={
+            layoutDiagnostics
+          }
+          selectedMachineId={machineId}
+          onSelectMachine={(selectedId) => {
+            setMachineId(selectedId);
+            setResult(null);
+            setMeasurements([]);
+            setError("");
+          }}
+          loading={layoutLoading}
+        />
+
+
+
 
         {analysisLoading && (
           <section className="empty-state">

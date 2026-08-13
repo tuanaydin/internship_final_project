@@ -1,98 +1,136 @@
 from __future__ import annotations
+
+from copy import deepcopy
 from typing import Any
 
-import yaml
+from backend.services.asset_catalog import (
+    get_asset_catalog,
+)
 
-from backend.core.config import ASSETS_FILE
 
-def load_assets() -> dict[str, Any]:
-    """
-    assets.yaml dosyasını okuyup Python dictionary olarak döndürür.
-    """
+def get_plant_by_id(
+    plant_id: str,
+) -> dict[str, Any] | None:
+    plant = (
+        get_asset_catalog()
+        .plants_by_id
+        .get(plant_id)
+    )
 
-    if not ASSETS_FILE.exists():
-        raise FileNotFoundError(
-            f"Asset configuration file not found: {ASSETS_FILE}"
+    return (
+        deepcopy(plant)
+        if plant is not None
+        else None
+    )
+
+
+def get_station_by_id(
+    station_id: str,
+) -> dict[str, Any] | None:
+    station = (
+        get_asset_catalog()
+        .stations_by_id
+        .get(station_id)
+    )
+
+    return (
+        deepcopy(station)
+        if station is not None
+        else None
+    )
+
+
+def get_machine_by_id(
+    machine_id: str,
+) -> dict[str, Any] | None:
+    machine = (
+        get_asset_catalog()
+        .machines_by_id
+        .get(machine_id)
+    )
+
+    return (
+        deepcopy(machine)
+        if machine is not None
+        else None
+    )
+
+
+def list_stations(
+    plant_id: str | None = None,
+) -> list[dict[str, Any]]:
+    catalog = get_asset_catalog()
+
+    if plant_id is None:
+        stations = list(
+            catalog.stations_by_id.values()
+        )
+    else:
+        stations = (
+            catalog
+            .stations_by_plant_id
+            .get(plant_id, [])
         )
 
-    with ASSETS_FILE.open("r", encoding="utf-8") as file:
-        data = yaml.safe_load(file)
-
-    if not data:
-        raise ValueError("assets.yaml is empty.")
-
-    return data
+    return deepcopy(stations)
 
 
-def get_plant(plant_id: str) -> dict[str, Any] | None:
-    """
-    ID'ye göre plant bilgisini döndürür.
-    """
+def list_machines(
+    station_id: str | None = None,
+) -> list[dict[str, Any]]:
+    catalog = get_asset_catalog()
 
-    assets = load_assets()
-    plant = assets.get("plant")
+    if station_id is None:
+        machines = list(
+            catalog.machines_by_id.values()
+        )
+    else:
+        machines = (
+            catalog
+            .machines_by_station_id
+            .get(station_id, [])
+        )
 
-    if plant and plant.get("id") == plant_id:
-        return plant
-
-    return None
-
-
-def get_stations(plant_id: str) -> list[dict[str, Any]]:
-    """
-    Belirtilen plant altındaki istasyonları döndürür.
-    """
-
-    assets = load_assets()
-
-    return [
-        station
-        for station in assets.get("stations", [])
-        if station.get("plant_id") == plant_id
-    ]
+    return deepcopy(machines)
 
 
-def get_station(station_id: str) -> dict[str, Any] | None:
-    """
-    ID'ye göre istasyonu döndürür.
-    """
+# ---------------------------------------------------------
+# Backward compatibility
+# ---------------------------------------------------------
+# Downstream servisleri yeni isimlere geçirene kadar
+# mevcut import sözleşmelerini koruyoruz.
+"""
 
-    assets = load_assets()
-
-    for station in assets.get("stations", []):
-        if station.get("id") == station_id:
-            return station
-
-    return None
-
-
-def get_machines(station_id: str) -> list[dict[str, Any]]:
-    """
-    Belirtilen istasyondaki makineleri döndürür.
-    """
-
-    station = get_station(station_id)
-
-    if station is None:
-        return []
-
-    return station.get("machines", [])
+def get_plant(
+    plant_id: str,
+) -> dict[str, Any] | None:
+    return get_plant_by_id(plant_id)
 
 
-def get_machine(machine_id: str) -> dict[str, Any] | None:
-    """
-    Tüm istasyonlar içerisinde makineyi ID'ye göre arar.
-    """
+def get_station(
+    station_id: str,
+) -> dict[str, Any] | None:
+    return get_station_by_id(station_id)
 
-    assets = load_assets()
 
-    for station in assets.get("stations", []):
-        for machine in station.get("machines", []):
-            if machine.get("id") == machine_id:
-                return {
-                    **machine,
-                    "station_id": station.get("id"),
-                    "plant_id": station.get("plant_id"),
-                }
+def get_machine(
+    machine_id: str,
+) -> dict[str, Any] | None:
+    return get_machine_by_id(machine_id)
 
-    return None
+
+def get_stations(
+    plant_id: str,
+) -> list[dict[str, Any]]:
+    return list_stations(
+        plant_id=plant_id
+    )
+
+
+def get_machines(
+    station_id: str,
+) -> list[dict[str, Any]]:
+    return list_machines(
+        station_id=station_id
+    )
+"""
