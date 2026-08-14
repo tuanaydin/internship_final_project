@@ -1,6 +1,6 @@
 # IoT Maintenance Assistant — Final MVP
 
-> **Durum:** Deterministik IoT analiz çekirdeği, multi-asset yapı, RAG + LLM karar destek hattı, FastAPI Assistant endpoint'i ve React tabanlı görsel arayüz tamamlandı.
+> **Durum:** Deterministik IoT analiz çekirdeği, multi-asset yapı, RAG + LLM karar destek hattı, FastAPI API katmanı, Factory Layout / Heat Map ve React tabanlı kullanıcı arayüzü tamamlandı.
 >
 > **MVP kapsamı:** `PLANT_01 → STATION_01 → MOTOR_A / PUMP_B / VALVE_C`
 
@@ -11,10 +11,10 @@
 1. [Proje Amacı](#1-proje-amacı)
 2. [Proje Konumlandırması](#2-proje-konumlandırması)
 3. [Varlık Hiyerarşisi](#3-varlık-hiyerarşisi)
-4. [Güncel Proje Yapısı](#4-güncel-proje-yapısı)
+4. [Proje Yapısı](#4-proje-yapısı)
 5. [Deterministik IoT Analiz Akışı](#5-deterministik-iot-analiz-akışı)
 6. [Deterministik Backend İşlevleri](#6-deterministik-backend-işlevleri)
-7. [Multi-Asset Demo](#7-multi-asset-demo)
+7. [Multi-Asset Yapı](#7-multi-asset-yapı)
 8. [RAG Mimarisi](#8-rag-mimarisi)
 9. [RAG Bileşenleri](#9-rag-bileşenleri)
 10. [Uçtan Uca Sistem Akışı](#10-uçtan-uca-sistem-akışı)
@@ -33,60 +33,62 @@
 
 ---
 
-## 1. Proje Amacı
+# 1. Proje Amacı
 
 Bu proje; endüstriyel IoT sensör verisini, varlık hiyerarşisini, teknik bakım dokümanlarını ve üretken yapay zekâyı bir araya getirerek **açıklanabilir ve kanıta dayalı bakım karar desteği** sunan bir MVP geliştirmeyi amaçlar.
 
-Temel yaklaşım:
+Sistem temel olarak şu akışı uygular:
 
-1. Sensör verisini oku.
-2. Veri kalitesini doğrula.
-3. Eşik ve alarm analizi yap.
-4. Sensör trendlerini değerlendir.
-5. Çoklu sensör desenlerinden deterministik teşhis üret.
-6. Kritik durumlarda prosedür ve eskalasyon belirle.
-7. Deterministik analiz sonucunu kullanarak RAG sorgusunu zenginleştir.
-8. Teknik dokümanlar, bakım prosedürleri ve geçmiş benzer olaylar arasında semantic search yap.
-9. Deterministik analiz ile retrieved kaynakları ortak bir context içinde birleştir.
-10. LLM ile kaynaklı ve kanıta dayalı Türkçe cevap üret.
+1. Sensör verisini okur.
+2. Veri kalitesini kontrol eder.
+3. Eşik ve alarm analizini gerçekleştirir.
+4. Sensör trendlerini değerlendirir.
+5. Desteklenen varlık tiplerinde deterministik teşhis üretir.
+6. Gerekli durumlarda bakım prosedürü ve eskalasyon bilgisini belirler.
+7. Deterministik analiz sonucunu RAG sorgusuna dahil eder.
+8. İlgili teknik dokümanlar ve geçmiş bakım kayıtları üzerinde semantic retrieval gerçekleştirir.
+9. Deterministik analiz ile retrieved dokümanları ortak bir context içinde birleştirir.
+10. LLM aracılığıyla kaynaklı ve kanıta dayalı Türkçe cevap üretir.
 
 ---
 
-## 2. Proje Konumlandırması
+# 2. Proje Konumlandırması
 
-Amaç bir IIoT, MES veya SCADA platformunu baştan geliştirmek değildir.
+Bu projenin amacı yeni bir IIoT, MES veya SCADA platformu geliştirmek değildir.
 
-MVP odağı:
+MVP'nin odak noktası:
 
 > **Asset-context-aware + deterministic-first + evidence-grounded maintenance assistant**
 
-Sistemde LLM doğrudan ham sensör verisinden arıza teşhisi koymaz.
+Sistemin temel tasarım prensibi, LLM'in ham sensör verisini doğrudan yorumlayarak kendi başına fiziksel arıza teşhisi üretmesini engellemektir.
 
 ```text
-Sensör verisi
+Sensör Verisi
       ↓
-Deterministik analiz
+Deterministik Analiz
       ↓
 Teşhis + Alarm + Kanıt
       ↓
 RAG
       ↓
-Teknik kaynaklar
+Teknik Kaynaklar
       ↓
-LLM açıklaması
+LLM Açıklaması
 ```
 
-Sorumluluklar üç katmana ayrılmıştır:
+Sorumluluklar üç ana katmana ayrılır:
 
-* **Deterministik katman:** sensör değerlerini analiz eder ve teknik durumu belirler.
-* **RAG katmanı:** ilgili teknik dokümanları ve geçmiş olayları getirir.
-* **LLM katmanı:** mevcut kanıtları kullanıcıya anlaşılır biçimde açıklar.
+- **Deterministik katman:** Sensör değerlerini, veri kalitesini, threshold durumlarını ve trendleri değerlendirir.
+- **RAG katmanı:** Seçilen asset'e ait ilgili teknik dokümanları getirir.
+- **LLM katmanı:** Deterministik sonuçları ve retrieved kaynakları kullanıcıya anlaşılır biçimde açıklar.
 
-LLM, deterministik analiz sonucunu değiştiren yeni bir teşhis üretmek için kullanılmaz.
+LLM, deterministik analiz sonucunun yerine geçen yeni bir fiziksel teşhis üretmek için kullanılmaz.
 
 ---
 
-## 3. Varlık Hiyerarşisi
+# 3. Varlık Hiyerarşisi
+
+MVP aşağıdaki asset yapısını kullanır:
 
 ```text
 PLANT_01
@@ -94,11 +96,12 @@ PLANT_01
 │   ├── MOTOR_A
 │   ├── PUMP_B
 │   └── VALVE_C
+│
 └── STATION_02
     └── (placeholder)
 ```
 
-Varlık ilişkileri `config/assets.yaml` üzerinden tanımlanır.
+Varlık ilişkileri:
 
 ```text
 Plant
@@ -107,8 +110,10 @@ Station
   ↓
 Asset
   ↓
-Sensors / Data / Knowledge Base
+Sensors / Data / Knowledge Base / Spatial Context
 ```
+
+Asset kataloğu `config/assets.yaml` üzerinden yönetilir.
 
 `STATION_01` altında üç farklı varlık tipi bulunmaktadır:
 
@@ -118,12 +123,15 @@ PUMP_B  → centrifugal_pump
 VALVE_C → control_valve
 ```
 
+Bu yapı sayesinde frontend ve backend doğrudan sabit `machine_id` kontrollerine bağımlı olmadan asset metadata üzerinden çalışabilir.
+
 ---
 
-## 4. Güncel Proje Yapısı
+# 4. Proje Yapısı
 
 ```text
-FINAL_PROJECT/
+internship_final_project/
+│
 ├── backend/
 │   ├── api/
 │   │   └── routes/
@@ -148,6 +156,7 @@ FINAL_PROJECT/
 │   │   ├── anomaly_service.py
 │   │   ├── trend_service.py
 │   │   ├── diagnostic_service.py
+│   │   │
 │   │   └── rag/
 │   │       ├── document_loader.py
 │   │       ├── chunking_service.py
@@ -166,6 +175,7 @@ FINAL_PROJECT/
 ├── frontend/
 │   ├── public/
 │   │   └── factory-layout.svg
+│   │
 │   └── src/
 │       ├── api/
 │       ├── components/
@@ -199,15 +209,17 @@ FINAL_PROJECT/
 │   └── chroma/
 │
 ├── tests/
+│
 ├── .env.example
 ├── .gitignore
+├── pytest.ini
 ├── README.md
 └── requirements.txt
 ```
 
 ---
 
-## 5. Deterministik IoT Analiz Akışı
+# 5. Deterministik IoT Analiz Akışı
 
 ```mermaid
 flowchart TD
@@ -235,37 +247,72 @@ Threshold Analysis
     ↓
 Trend Analysis
     ↓
-Multi-Sensor Diagnosis
+Asset-Type-Aware Diagnosis
     ↓
 Alarm + Procedure
     ↓
 Severity / Escalation
 ```
 
+Analizler belirli bir `timestamp` ve `window_minutes` değeri üzerinden gerçekleştirilir.
+
+Dashboard ve RAG Assistant aynı **time-based measurement window** mantığını kullanır.
+
+Bu sayede RAG katmanı sabit örnekleme aralığı veya belirli sayıda son kaydı alma varsayımına bağımlı değildir.
+
 ---
 
-## 6. Deterministik Backend İşlevleri
+# 6. Deterministik Backend İşlevleri
 
-### Asset Service
+## Asset Service
 
-* Plant bilgisi
-* Station bilgisi
-* Station altındaki varlıklar
-* Asset → Station → Plant ilişkisi
-* Cached asset catalog
-* Data ve knowledge base path çözümleme
-* Frontend için hierarchy endpoint'i
-* Spatial koordinatların taşınması
+Asset katmanı şu sorumlulukları taşır:
 
-### Data Service
+- Plant bilgisi
+- Station bilgisi
+- Station altındaki asset'ler
+- Asset → Station → Plant ilişkisi
+- Cached asset catalog
+- Data path çözümleme
+- Knowledge base path çözümleme
+- Asset metadata
+- Parent ID bilgileri
+- Spatial koordinatlar
+- Frontend hierarchy verisi
 
-* CSV sensör verisi okuma
-* Son ölçüm
-* Geçmiş ölçümler
-* Belirli timestamp etrafında gerçek zaman tabanlı pencere sorgusu
-* Ground-truth alanlarını runtime analiz girdisinden ayırma
+Asset katalog sonuçları cache üzerinden okunur ve servis dışındaki mutation işlemlerinin cached katalog yapısını değiştirmemesi sağlanır.
 
-### Data Quality
+---
+
+## Data Service
+
+Data Service:
+
+- CSV sensör verisini okur.
+- Son ölçümü getirir.
+- Geçmiş ölçümleri sorgular.
+- Timestamp bazlı ölçüm sorgusu gerçekleştirir.
+- Belirlenen zaman aralığındaki ölçümleri getirir.
+- Ground-truth / demo amaçlı alanları runtime analiz girdisinden ayırır.
+
+Time-based window mantığı:
+
+```text
+timestamp = T
+window_minutes = W
+
+başlangıç = T - W
+
+başlangıç <= measurement_timestamp <= T
+```
+
+Başlangıç ve bitiş zamanları pencereye dahildir.
+
+Bu yaklaşım örnekleme frekansından bağımsızdır.
+
+---
+
+## Data Quality
 
 Desteklenen örnek veri kalitesi durumları:
 
@@ -275,9 +322,20 @@ DQ-STUCK-01
 DQ-MISS-01
 ```
 
-Data-quality kontrolleri asset konfigürasyonuna göre uygulanır.
+Data-quality kontrolleri asset konfigürasyonuna ve gerekli sensör alanlarına göre uygulanır.
 
-### Threshold / Alarm
+Veri güvenilir değilse sistem kesin fiziksel arıza teşhisi üretmek yerine:
+
+```text
+status = conditional
+confidence = low
+```
+
+davranışına geçer.
+
+---
+
+## Threshold / Alarm
 
 Motor-A demo eşikleri:
 
@@ -295,32 +353,39 @@ Load
 35–92 normal | >92 warning | ≥105 critical
 ```
 
-> Bu eşikler gerçek üretici spesifikasyonları değildir. MVP ve sentetik veri senaryosu için tanımlanmıştır.
+> Bu eşikler gerçek üretici spesifikasyonları değildir. MVP ve sentetik demo senaryosu için tanımlanmıştır.
 
-PUMP_B ve VALVE_C için gerekli sensörlere özel threshold konfigürasyonları ayrıca tanımlanmıştır.
+`PUMP_B` ve `VALVE_C` için ilgili sensör yapılarına uygun threshold konfigürasyonları ayrıca bulunmaktadır.
 
-### Trend Analysis
+---
+
+## Trend Analysis
 
 İzlenen ortak değişkenler:
 
-* temperature
-* vibration
-* current
-* load
-* power
+- temperature
+- vibration
+- current
+- load
+- power
 
-Trend sonuçları:
+Olası trend sonuçları:
 
 ```text
 increasing
 stable
 decreasing
-unknown / insufficient_data
+unknown
+insufficient_data
 ```
 
-### Diagnostic Service
+Trend analizi kayıt sayısı yerine seçilen gerçek zaman penceresi içerisindeki ölçümler üzerinde çalışır.
 
-Motor-A için tanımlı deterministik desenler:
+---
+
+## Diagnostic Service
+
+Motor tipi asset'ler için MVP kapsamında tanımlanan deterministik fiziksel teşhis desenleri:
 
 ```text
 cooling_degradation
@@ -328,15 +393,61 @@ bearing_degradation
 overload
 ```
 
-Kritik Motor-A durumlarında `MNT-MA-007` eskalasyonu üretilebilir.
+Kritik Motor-A durumlarında ilgili bakım prosedürlerine ek olarak:
 
-Farklı asset tiplerinde desteklenmeyen fiziksel teşhislerin uydurulması yerine güvenli `no_pattern` davranışı tercih edilir.
+```text
+MNT-MA-007
+```
+
+eskalasyon prosedürü üretilebilir.
+
+### Asset-Type Diagnostic Guard
+
+Fiziksel teşhis kuralları `machine_id` yerine asset tipine göre uygulanır.
+
+```text
+electric_motor
+    ↓
+bearing / overload / cooling diagnosis rules
+
+centrifugal_pump
+    ↓
+no_pattern
+
+control_valve
+    ↓
+no_pattern
+```
+
+Bu nedenle `PUMP_B` veya `VALVE_C` kritik durumda olsa bile Motor-A'ya ait:
+
+```text
+MNT-MA-001
+MNT-MA-002
+MNT-MA-003
+MNT-MA-007
+```
+
+prosedürleri yanlışlıkla üretilmez.
+
+Desteklenmeyen asset tipleri için güvenli davranış:
+
+```text
+status = no_pattern
+diagnosis = None
+recommended_procedure = None
+escalation_procedure = None
+```
+
+şeklindedir.
+
+Bu yaklaşım, farklı asset tipleri için henüz tanımlanmamış fiziksel teşhislerin sistem tarafından uydurulmasını engeller.
 
 ---
 
-## 7. Multi-Asset Demo
+# 7. Multi-Asset Yapı
 
-`STATION_01` altında üç farklı varlık bulunmaktadır:
+`STATION_01` altında üç farklı asset bulunur:
 
 ```text
 MOTOR_A → electric_motor
@@ -344,27 +455,38 @@ PUMP_B  → centrifugal_pump
 VALVE_C → control_valve
 ```
 
-Her varlığın kendi:
+Her asset'in kendi:
 
-* sensör verisi,
-* threshold konfigürasyonu,
-* data-quality gereksinimleri,
-* knowledge base'i,
-* spatial koordinatı
+- sensör verisi,
+- threshold konfigürasyonu,
+- data-quality gereksinimleri,
+- knowledge base'i,
+- asset metadata'sı,
+- spatial koordinatı
 
 bulunur.
 
-Örnek süreç ilişkisi:
+Örnek proses ilişkisi:
 
 ```text
 MOTOR_A → PUMP_B → VALVE_C → PROCESS_OUT
 ```
 
-Spatial koordinatlar yüzde tabanlıdır ve frontend factory layout üzerinde responsive biçimde kullanılır.
+Spatial koordinatlar yüzde tabanlıdır:
+
+```yaml
+spatial:
+  x_pct: 68
+  y_pct: 42
+```
+
+Bu değerler Factory Layout üzerinde responsive asset konumlandırması için kullanılır.
+
+Yeni bir asset eklenirken frontend'de asset ID bazlı hardcode yapılması gerekmez.
 
 ---
 
-## 8. RAG Mimarisi
+# 8. RAG Mimarisi
 
 ```mermaid
 flowchart TD
@@ -389,7 +511,7 @@ flowchart TD
     M --> N[Evidence-Grounded Answer]
 ```
 
-Klasik RAG:
+Klasik bir RAG sorgusu:
 
 ```text
 User Question
@@ -397,7 +519,7 @@ User Question
 Retriever
 ```
 
-Bu projede:
+Bu projede retrieval sorgusu deterministik IoT bilgileriyle zenginleştirilir:
 
 ```text
 User Question
@@ -415,13 +537,13 @@ Sensor Evidence
 Retriever
 ```
 
-Bu sayede retrieval sorgusu yalnızca kullanıcı sorusuna değil, mevcut IoT durumuna da dayanır.
+Bu nedenle retriever yalnız kullanıcı sorusuna değil, seçilen asset'in mevcut teknik durumuna da bağlı çalışır.
 
 ---
 
-## 9. RAG Bileşenleri
+# 9. RAG Bileşenleri
 
-### 9.1 Document Loader
+## 9.1 Document Loader
 
 Desteklenen formatlar:
 
@@ -430,13 +552,21 @@ DOCX
 PDF
 ```
 
-DOCX belgelerinde paragraf ve tablolar okunur.
+DOCX dosyalarında:
 
-PDF belgelerinde sayfa bazlı yükleme yapılır ve sayfa metadata'sı korunur.
+- paragraf içerikleri,
+- tablolar
 
-Image-only / scanned PDF belgeleri mevcut MVP kapsamında OCR ile işlenmez.
+okunur.
 
-Her asset için beş teknik doküman kategorisi kullanılır:
+PDF dosyaları:
+
+- sayfa bazlı yüklenir,
+- sayfa metadata'sı korunur.
+
+Image-only veya taranmış PDF belgelerinde OCR mevcut MVP kapsamında desteklenmez.
+
+Her asset için beş teknik doküman kategorisi kullanılabilir:
 
 ```text
 01_ → technical_manual
@@ -446,9 +576,7 @@ Her asset için beş teknik doküman kategorisi kullanılır:
 05_ → incident_history
 ```
 
-Doküman ID'leri asset kimliğinden otomatik türetilir.
-
-Örnek:
+Örnek Document ID yapısı:
 
 ```text
 MOTOR_A
@@ -473,9 +601,7 @@ VC-TRB-001
 VC-INC-001
 ```
 
-#### Metadata
-
-Örnek:
+Örnek document metadata:
 
 ```json
 {
@@ -491,16 +617,18 @@ VC-INC-001
 }
 ```
 
-### 9.2 Chunking
+---
 
-Dokümanlar `RecursiveCharacterTextSplitter` ile parçalanır.
+## 9.2 Chunking
+
+Dokümanlar `RecursiveCharacterTextSplitter` kullanılarak parçalanır.
 
 ```text
 chunk_size    = 900
 chunk_overlap = 150
 ```
 
-Chunk ID örnekleri:
+Örnek Chunk ID'leri:
 
 ```text
 PB-MNT-001_CHUNK_0001
@@ -508,7 +636,9 @@ VC-MNT-001_CHUNK_0003
 MA-INC-001_CHUNK_0002
 ```
 
-### 9.3 Embedding
+---
+
+## 9.3 Embedding
 
 Kullanılan local multilingual embedding modeli:
 
@@ -516,11 +646,13 @@ Kullanılan local multilingual embedding modeli:
 sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2
 ```
 
-Embedding'ler normalize edilir.
+Embedding vektörleri normalize edilir.
 
-Embedding modelinin aynı process içinde tekrar tekrar yüklenmesini önlemek için cache kullanılır.
+Embedding modelinin aynı process içerisinde gereksiz şekilde tekrar yüklenmesini önlemek için cache kullanılır.
 
-### 9.4 Vector Store
+---
+
+## 9.4 Vector Store
 
 Vector store:
 
@@ -540,17 +672,18 @@ Collection:
 iot_maintenance_kb
 ```
 
-Multi-asset bilgi tabanında doğrulanan ek chunk sayıları:
+Multi-asset knowledge base için doğrulanan ek indexleme çıktısı:
 
 ```text
 PUMP_B  → 29 chunk
 VALVE_C → 28 chunk
-Toplam  → 57 yeni chunk
+
+Toplam → 57 yeni chunk
 ```
 
 Retrieval sırasında `machine_id` metadata filtresi uygulanır.
 
-Doğrulanan davranış:
+Beklenen kaynak izolasyonu:
 
 ```text
 MOTOR_A → yalnız MA-* kaynakları
@@ -558,11 +691,13 @@ PUMP_B  → yalnız PB-* kaynakları
 VALVE_C → yalnız VC-* kaynakları
 ```
 
-Bu sayede farklı asset'lerin bilgi tabanları birbirine karışmaz.
+Bu sayede farklı asset'lerin teknik dokümanları aynı retrieval sonucunda birbirine karışmaz.
 
-### 9.5 Deterministic-Aware Query Builder
+---
 
-Kullanıcı sorusu retrieval öncesinde deterministik analiz bilgileriyle zenginleştirilir.
+## 9.5 Deterministic-Aware Query Builder
+
+Kullanıcı sorusu retrieval öncesinde deterministik analiz bilgileri ile zenginleştirilir.
 
 Örnek:
 
@@ -572,18 +707,65 @@ Motor-A neden kritik durumda ve hangi bakım işlemleri yapılmalı?
 Overall status: critical
 Diagnosis: bearing_degradation
 Confidence: high
-Active alarms: ALM-TEMP-01, ALM-VIB-02, ALM-COMB-BRG-01
-Recommended procedure: MNT-MA-002
-Escalation procedure: MNT-MA-007
+
+Active alarms:
+ALM-TEMP-01
+ALM-VIB-02
+ALM-COMB-BRG-01
+
+Recommended procedure:
+MNT-MA-002
+
+Escalation procedure:
+MNT-MA-007
+
 Evidence:
 temperature increasing
 vibration increasing
 vibration 8.231 mm/s
 ```
 
-### 9.6 Context Builder
+---
 
-Context builder üç ana bilgi grubunu birleştirir:
+## 9.6 Time-Based RAG Context
+
+RAG servisi ile dashboard aynı sensör penceresi semantiğini kullanır.
+
+Eski kayıt-sayısı yaklaşımı yerine:
+
+```text
+timestamp
++
+window_minutes
+```
+
+doğrudan `get_measurements_in_window()` üzerinden değerlendirilir.
+
+Örnek:
+
+```text
+Timestamp:
+20:00
+
+Window:
+7 dakika
+
+Kullanılan veri:
+19:53 <= measurement <= 20:00
+```
+
+Bu sayede sistem:
+
+- 5 dakikalık sabit sampling varsayımına bağımlı değildir,
+- eksik ölçümlerde pencere anlamını korur,
+- farklı asset sampling aralıklarını destekleyebilir,
+- dashboard ve RAG tarafında aynı deterministik bağlamı kullanır.
+
+---
+
+## 9.7 Context Builder
+
+Context Builder üç temel bilgi grubunu birleştirir:
 
 ```text
 Asset Context
@@ -593,7 +775,7 @@ Deterministic Analysis
 Retrieved Knowledge
 ```
 
-Örnek yapı:
+Örnek context:
 
 ```text
 === USER QUESTION ===
@@ -624,20 +806,25 @@ Source
 Content
 ```
 
-### 9.7 Prompt Guardrails
+---
 
-LLM için kullanılan prompt şu prensipleri uygular:
+## 9.8 Prompt Guardrails
 
-* Deterministik analiz birincil teknik gerçek kabul edilir.
-* LLM yeni bir arıza teşhisi üretmez.
-* Retrieved dokümanlar teşhisi değiştirmek için değil, açıklamak ve desteklemek için kullanılır.
-* Dokümanda bulunmayan üretici bilgisi, limit veya prosedür uydurulmaz.
-* Güvenilir olmayan veride kesin fiziksel arıza iddiası yapılmaz.
-* Kritik durumda insan onayı olmadan fiziksel kontrol komutu önerilmez.
-* Mevcut sensör değerleri retrieved dokümanlara yanlış biçimde kaynaklandırılmaz.
-* Teknik kaynaklar `Document ID` ve `Chunk ID` ile gösterilir.
+LLM prompt'u aşağıdaki prensipleri uygular:
 
-### 9.8 LLM
+- Deterministik analiz birincil teknik gerçek kabul edilir.
+- LLM yeni fiziksel arıza teşhisi üretmez.
+- Retrieved dokümanlar teşhisi değiştirmek için kullanılmaz.
+- Teknik dokümanlar mevcut sonucu açıklamak ve desteklemek için kullanılır.
+- Dokümanda bulunmayan üretici bilgisi, limit veya prosedür uydurulmaz.
+- Güvenilir olmayan sensör verisinde kesin fiziksel arıza iddiası yapılmaz.
+- Kritik bakım kararlarında insan onayı korunur.
+- Mevcut sensör değerleri teknik dokümanlara yanlış biçimde kaynaklandırılmaz.
+- Kullanılan teknik kaynaklar `Document ID` ve `Chunk ID` ile gösterilir.
+
+---
+
+## 9.9 LLM
 
 LLM katmanı LangChain üzerinden oluşturulur.
 
@@ -647,13 +834,13 @@ Varsayılan model:
 google_genai:gemini-3.5-flash-lite
 ```
 
-Model environment variable üzerinden değiştirilebilir:
+Model `.env` üzerinden değiştirilebilir:
 
 ```text
 RAG_MODEL
 ```
 
-Akış:
+LLM akışı:
 
 ```text
 ChatPromptTemplate
@@ -667,7 +854,7 @@ Türkçe cevap
 
 ---
 
-## 10. Uçtan Uca Sistem Akışı
+# 10. Uçtan Uca Sistem Akışı
 
 ```text
 Asset + Timestamp + Question
@@ -680,7 +867,7 @@ Asset + Timestamp + Question
             ↓
       Trend Analysis
             ↓
-  Deterministic Diagnosis
+Asset-Type-Aware Diagnosis
             ↓
 Diagnosis + Alarm + Procedure
             ↓
@@ -688,9 +875,9 @@ Deterministic-Aware Query
             ↓
      Semantic Retrieval
             ↓
-Technical Documents
-+
-Historical Incidents
+ Technical Documents
+            +
+ Historical Incidents
             ↓
       Context Builder
             ↓
@@ -700,16 +887,20 @@ Historical Incidents
             ↓
 Evidence-Grounded AI Answer
             ↓
-        React UI
+        FastAPI
+            ↓
+     React Dashboard
+            ↓
+ Factory Layout / Heat Map
 ```
 
 ---
 
-## 11. Factory Layout ve Heat Map
+# 11. Factory Layout ve Heat Map
 
-Frontend içerisinde fabrika yerleşimi üzerinde asset konumları gösterilir.
+Frontend içerisinde fabrika yerleşimi üzerinde asset konumları görselleştirilir.
 
-Desteklenen görünüm modları:
+Desteklenen Heat Map modları:
 
 ```text
 Genel Durum
@@ -726,36 +917,52 @@ Kırmızı → Kritik
 Gri     → Veri yok
 ```
 
-Örneğin titreşim sensörü bulunmayan bir asset için `Titreşim` görünümünde sistem gri durum gösterir ve desteklenmeyen sensörü kritik veya normal olarak varsaymaz.
+Bir asset ilgili sensöre sahip değilse sistem bunu normal veya kritik olarak varsaymaz.
 
-Layout üzerindeki bir asset seçildiğinde dashboard bağlamı da ilgili asset'e geçirilir.
+Örneğin `VALVE_C` için titreşim sensörü bulunmuyorsa:
 
----
+```text
+Titreşim → Veri yok
+```
 
-## 12. Frontend
+gösterilir.
 
-React + Vite tabanlı dashboard aşağıdaki özellikleri içerir:
-
-* Plant → Station → Asset navigation
-* Dinamik asset dropdown
-* Asset detail
-* Deterministik durum kartları
-* Veri kalitesi görünümü
-* Alarm görünümü
-* Bakım prosedürü ve eskalasyon kartları
-* Sensör zaman serisi grafikleri
-* Factory Layout
-* Spatial asset marker'ları
-* Heat Map
-* Genel Durum / Sıcaklık / Titreşim modları
-* AI Maintenance Assistant
-* Markdown LLM yanıtları
-* Retrieved source kartları
-* Document ID / Chunk ID kaynak gösterimi
+Layout üzerindeki asset marker'ına tıklandığında dashboard'un aktif asset context'i de ilgili varlığa geçirilir.
 
 ---
 
-## 13. API
+# 12. Frontend
+
+Frontend React + Vite ile geliştirilmiştir.
+
+Başlıca özellikler:
+
+- Plant → Station → Asset navigation
+- Dinamik asset dropdown
+- Asset detay görünümü
+- Deterministik analiz kartları
+- Data-quality görünümü
+- Threshold / alarm görünümü
+- Diagnosis görünümü
+- Bakım prosedürü
+- Escalation bilgisi
+- Sensör zaman serisi grafikleri
+- Factory Layout
+- Spatial asset marker'ları
+- Heat Map
+- Genel Durum / Sıcaklık / Titreşim modları
+- AI Maintenance Assistant
+- Markdown LLM cevapları
+- Retrieved source kartları
+- Document ID gösterimi
+- Chunk ID gösterimi
+- Asset context değişiminde RAG izolasyonu
+
+Kullanıcı analiz timestamp'ini veya trend penceresini değiştirdiğinde eski AI cevabının yeni analiz context'i ile karışmaması için Assistant sonucu temizlenir.
+
+---
+
+# 13. API
 
 Swagger:
 
@@ -763,14 +970,14 @@ Swagger:
 http://127.0.0.1:8000/docs
 ```
 
-### System
+## System
 
 ```http
 GET /
 GET /health
 ```
 
-### Assets
+## Assets
 
 ```http
 GET /api/v1/plants/{plant_id}
@@ -780,14 +987,14 @@ GET /api/v1/stations/{station_id}
 GET /api/v1/stations/{station_id}/machines
 ```
 
-### Machines
+## Machines
 
 ```http
 GET /api/v1/machines/{machine_id}
 GET /api/v1/machines/{machine_id}/latest
 ```
 
-### Analysis
+## Analysis
 
 ```http
 GET /api/v1/machines/{machine_id}/analysis/latest
@@ -798,13 +1005,13 @@ GET /api/v1/machines/{machine_id}/diagnostics/at
 GET /api/v1/machines/{machine_id}/measurements/at
 ```
 
-### Assistant
+## Assistant
 
 ```http
-POST /api/v1/machines/{machine_id}/assistant
+POST /api/v1/machines/{machine_id}/assistant/ask
 ```
 
-Request body örneği:
+Örnek request:
 
 ```json
 {
@@ -815,23 +1022,25 @@ Request body örneği:
 }
 ```
 
-Endpoint şu akışı çalıştırır:
+Assistant endpoint'i şu akışı çalıştırır:
 
 ```text
+Asset Context
+      +
 Deterministic Analysis
-        +
-Machine-filtered RAG
-        +
+      +
+Machine-Filtered RAG
+      +
 Prompt Guardrails
-        ↓
+      ↓
 Evidence-Grounded Answer
 ```
 
 ---
 
-## 14. Doğrulanan Demo Senaryosu
+# 14. Doğrulanan Demo Senaryosu
 
-Ana demo timestamp'i:
+Ana demo zamanı:
 
 ```text
 2026-07-27 20:00:00
@@ -843,21 +1052,35 @@ Trend penceresi:
 300 dakika
 ```
 
-### MOTOR_A
+Bu timestamp, Factory Layout ve multi-asset davranışını göstermek için kullanılabilir.
+
+---
+
+## MOTOR_A
 
 ```text
-Data Quality: ok
-Overall Status: critical
-Diagnosis: bearing_degradation
-Confidence: high
+Data Quality:
+ok
+
+Overall Status:
+critical
+
+Diagnosis:
+bearing_degradation
+
+Confidence:
+high
 
 Active Alarms:
-- ALM-TEMP-01
-- ALM-VIB-02
-- ALM-COMB-BRG-01
+ALM-TEMP-01
+ALM-VIB-02
+ALM-COMB-BRG-01
 
-Temperature: 79.20 °C
-Vibration: 8.231 mm/s
+Temperature:
+79.20 °C
+
+Vibration:
+8.231 mm/s
 
 Recommended Procedure:
 MNT-MA-002
@@ -866,56 +1089,99 @@ Escalation:
 MNT-MA-007
 ```
 
-### PUMP_B
+Motor-A için deterministic diagnosis motor asset profile'ı üzerinden çalışır.
 
-Aynı timestamp'te:
+---
+
+## PUMP_B
+
+Aynı timestamp:
 
 ```text
-Data Quality: ok
-Overall Status: normal
-Diagnosis: no_pattern
-Temperature: 55.09 °C
-Vibration: 2.445 mm/s
+Data Quality:
+ok
+
+Overall Status:
+normal
+
+Diagnosis:
+no_pattern
+
+Temperature:
+55.09 °C
+
+Vibration:
+2.445 mm/s
 ```
 
-RAG doğrulaması:
+RAG kaynak izolasyonu:
 
 ```text
 PUMP_B → yalnız PB-* kaynakları
 ```
 
-Örnek retrieval:
+Örnek kaynaklar:
 
 ```text
 PB-MNT-001
 PB-ALM-001
 ```
 
-### VALVE_C
+Pump için Motor-A'nın fiziksel diagnosis kuralları veya `MNT-MA-*` prosedürleri uygulanmaz.
 
-Aynı timestamp'te:
+---
+
+## VALVE_C
+
+Aynı timestamp:
 
 ```text
-Data Quality: ok
-Overall Status: normal
-Diagnosis: no_pattern
-Temperature: 42.67 °C
-Current: 0.674 A
+Data Quality:
+ok
+
+Overall Status:
+normal
+
+Diagnosis:
+no_pattern
+
+Temperature:
+42.67 °C
+
+Current:
+0.674 A
 ```
 
-Valve C'de titreşim ölçümü bulunmadığında sistem `vibration → insufficient_data / unknown` olarak davranır.
+Valve C için titreşim ölçümü bulunmadığında:
 
-RAG doğrulaması:
+```text
+vibration → insufficient_data / unknown
+```
+
+davranışı kullanılır.
+
+RAG kaynak izolasyonu:
 
 ```text
 VALVE_C → yalnız VC-* kaynakları
 ```
 
+Valve için Motor-A'nın fiziksel diagnosis ve eskalasyon prosedürleri uygulanmaz.
+
 ---
 
-## 15. Kurulum
+# 15. Kurulum
 
-### Virtual Environment
+## Repository
+
+```powershell
+git clone https://github.com/tuanaydin/internship_final_project.git
+cd internship_final_project
+```
+
+---
+
+## Python Virtual Environment
 
 Windows:
 
@@ -924,13 +1190,15 @@ python -m venv .venv
 .venv\Scripts\Activate.ps1
 ```
 
-Bağımlılıkları yükle:
+Backend bağımlılıklarını yükle:
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-### Environment Variables
+---
+
+## Environment Variables
 
 `.env.example` dosyasını `.env` olarak kopyala:
 
@@ -945,19 +1213,29 @@ GOOGLE_API_KEY=your_google_api_key_here
 RAG_MODEL=google_genai:gemini-3.5-flash-lite
 ```
 
-> Gerçek API key Git repository'sine eklenmemelidir.
+> Gerçek API key repository'ye commit edilmemelidir.
 
 ---
 
-## 16. Knowledge Base Indexleme
+## Frontend Dependencies
 
-PUMP_B ve VALVE_C dokümanlarını Chroma vector store'a eklemek için:
+```powershell
+cd frontend
+npm install
+cd ..
+```
+
+---
+
+# 16. Knowledge Base Indexleme
+
+Multi-asset knowledge base'i Chroma vector store'a eklemek için proje kökünde:
 
 ```powershell
 python -m scripts.index_multi_asset_kb
 ```
 
-Doğrulanan çıktı:
+Doğrulanan multi-asset indexleme çıktısı:
 
 ```text
 PUMP_B: 5 doküman, 29 chunk hazırlandı.
@@ -966,15 +1244,21 @@ VALVE_C: 5 doküman, 28 chunk hazırlandı.
 Toplam 57 chunk Chroma vector store'a eklendi.
 ```
 
+Vector store:
+
+```text
+storage/chroma/
+```
+
 ---
 
-## 17. Uygulamayı Çalıştırma
+# 17. Uygulamayı Çalıştırma
 
-### Backend
+## Backend
+
+Repository kökünde:
 
 ```powershell
-cd C:\Users\Casper\Documents\GitHub\Final_Project
-
 .venv\Scripts\Activate.ps1
 
 uvicorn backend.main:app --reload
@@ -998,13 +1282,14 @@ Health check:
 http://127.0.0.1:8000/health
 ```
 
-### Frontend
+---
 
-Yeni terminal:
+## Frontend
+
+Yeni bir terminal aç:
 
 ```powershell
-cd C:\Users\Casper\Documents\GitHub\Final_Project\frontend
-
+cd frontend
 npm run dev
 ```
 
@@ -1014,20 +1299,29 @@ Frontend:
 http://localhost:5173
 ```
 
-### Production Build
+---
+
+## Production Build
 
 ```powershell
 cd frontend
+
 npm run build
 ```
 
-Build sırasında bundle-size uyarısı görülebilir. Bu mevcut MVP için hata değildir.
+Build sırasında bundle-size uyarısı görülebilir. Bu mevcut MVP için build failure anlamına gelmez.
+
+Lint kontrolü:
+
+```powershell
+npm run lint
+```
 
 ---
 
-## 18. Testler
+# 18. Testler
 
-Backend regression testleri:
+Backend regression testlerini proje kökünden çalıştır:
 
 ```powershell
 python -m pytest -v
@@ -1036,32 +1330,61 @@ python -m pytest -v
 Son doğrulama:
 
 ```text
-19 passed
+22 passed
 2 dependency deprecation warnings
 ```
 
+Dependency uyarıları test başarısını etkilememektedir.
+
 Test kapsamındaki başlıca kontroller:
 
-* time-based measurement window
-* known overload diagnosis regression
-* missing sensor → unreliable data
-* invalid timestamp error contract
-* non-positive window rejection
-* unknown asset 404
-* trend ve diagnostic time-window kullanımı
-* asset catalog cache
-* cached catalog mutation protection
-* multi-asset station listing
-* hierarchy endpoint
-* parent IDs
-* critical escalation
-* health endpoint
+- time-based measurement window
+- inclusive time-window davranışı
+- known overload diagnosis regression
+- missing sensor → unreliable data
+- invalid timestamp error contract
+- non-positive window rejection
+- unknown asset → 404
+- trend ve diagnostic time-window kullanımı
+- asset catalog cache
+- cached catalog mutation protection
+- multi-asset station listing
+- hierarchy endpoint
+- parent ID'ler
+- health endpoint
+- critical Motor-A escalation
+- asset-type diagnostic guard
+- critical Pump → Motor procedure engeli
+- critical Valve → Motor escalation engeli
+- RAG time-based measurement window
+- dashboard / RAG measurement-window semantik uyumu
+
+Özellikle aşağıdaki iki yeni regression davranışı doğrulanmıştır:
+
+```text
+critical PUMP_B
+→ no Motor-A diagnosis
+→ no MNT-MA-* procedure
+```
+
+```text
+critical VALVE_C
+→ no MNT-MA-007 escalation
+```
+
+ve:
+
+```text
+RAG
+→ get_measurements_in_window()
+→ sampling-rate-independent time window
+```
 
 ---
 
-## 19. Geliştirme Durumu
+# 19. Geliştirme Durumu
 
-### Backend Foundation
+## Backend Foundation
 
 - [x] FastAPI
 - [x] `/health`
@@ -1071,7 +1394,9 @@ Test kapsamındaki başlıca kontroller:
 - [x] Pydantic schemas
 - [x] Swagger
 
-### Asset Hierarchy
+---
+
+## Asset Hierarchy
 
 - [x] `PLANT_01`
 - [x] `STATION_01`
@@ -1081,25 +1406,36 @@ Test kapsamındaki başlıca kontroller:
 - [x] `VALVE_C`
 - [x] Cached asset catalog
 - [x] Asset hierarchy API
+- [x] Parent ID bilgileri
 - [x] Spatial positions
+- [x] Asset-type metadata
 
-### Sensor Data
+---
+
+## Sensor Data
 
 - [x] CSV
 - [x] Excel reference dataset
 - [x] Latest measurement
 - [x] Historical timestamp query
 - [x] Time-based measurement window
+- [x] Inclusive time-window query
 - [x] Multi-asset data paths
+- [x] Sampling-rate-independent RAG window
 
-### Data Quality
+---
+
+## Data Quality
 
 - [x] Missing
 - [x] Stuck
 - [x] Spike
 - [x] Asset-specific required fields
+- [x] Unreliable-data guard
 
-### Threshold / Trend / Diagnosis
+---
+
+## Threshold / Trend / Diagnosis
 
 - [x] Temperature threshold
 - [x] Vibration threshold
@@ -1111,8 +1447,12 @@ Test kapsamındaki başlıca kontroller:
 - [x] Overload
 - [x] Critical escalation
 - [x] Safe `no_pattern` fallback
+- [x] Asset-type diagnostic guard
+- [x] Non-motor asset procedure isolation
 
-### RAG
+---
+
+## RAG
 
 - [x] DOCX loader
 - [x] PDF loader
@@ -1129,11 +1469,14 @@ Test kapsamındaki başlıca kontroller:
 - [x] Context builder
 - [x] Prompt guardrails
 - [x] Gemini integration
-- [x] Evidence-grounded answer
+- [x] Evidence-grounded answers
 - [x] Document / Chunk attribution
 - [x] Multi-asset knowledge-base indexing
+- [x] Time-based deterministic RAG context
 
-### API / Assistant
+---
+
+## API / Assistant
 
 - [x] Assistant endpoint
 - [x] Deterministic analysis context
@@ -1141,8 +1484,11 @@ Test kapsamındaki başlıca kontroller:
 - [x] LLM answer
 - [x] Structured sources
 - [x] Multi-asset source isolation
+- [x] Asset-type-aware deterministic context
 
-### Frontend / Layout
+---
+
+## Frontend / Layout
 
 - [x] Plant → Station → Asset navigation
 - [x] Asset detail
@@ -1150,7 +1496,7 @@ Test kapsamındaki başlıca kontroller:
 - [x] Status / alarm cards
 - [x] Chat assistant
 - [x] RAG source attribution
-- [x] Factory layout
+- [x] Factory Layout
 - [x] Spatial asset positioning
 - [x] Heat Map
 - [x] Genel Durum / Sıcaklık / Titreşim modları
@@ -1159,11 +1505,27 @@ Test kapsamındaki başlıca kontroller:
 - [x] Dynamic asset dropdown
 - [x] Unsupported sensor → Veri yok
 
-### Optional / Advanced
+---
+
+## Regression Tests
+
+- [x] Analysis API regression tests
+- [x] Asset API regression tests
+- [x] Asset service regression tests
+- [x] Diagnostic service regression tests
+- [x] RAG time-window regression test
+- [x] System / health regression test
+- [x] 22/22 test passed
+
+---
+
+## Optional / Advanced
+
+Aşağıdaki özellikler bilinçli olarak mevcut MVP kapsamının dışında bırakılmıştır:
 
 - [ ] Database
 - [ ] Real IoT API
-- [ ] Streaming
+- [ ] Streaming / MQTT
 - [ ] Maintenance ticket creation
 - [ ] OCR for scanned PDFs
 - [ ] Hybrid search
@@ -1171,75 +1533,112 @@ Test kapsamındaki başlıca kontroller:
 - [ ] Agent orchestration
 - [ ] 3D factory view
 - [ ] Fully generic asset-type diagnostic rule engine
+- [ ] Asset-type-specific advanced pump diagnosis
+- [ ] Asset-type-specific advanced valve diagnosis
 
 ---
 
-## 20. Final MVP Durumu
+# 20. Final MVP Durumu
 
 | Bileşen | Durum |
 |---|---|
 | Asset Catalog / Hierarchy | ✅ |
 | Multi-Asset Support | ✅ |
+| Asset-Type Metadata | ✅ |
 | Deterministic IoT Analysis | ✅ |
+| Time-Based Measurement Window | ✅ |
 | Data Quality | ✅ |
 | Threshold Analysis | ✅ |
 | Trend Analysis | ✅ |
 | Deterministic Diagnosis | ✅ |
+| Asset-Type Diagnostic Guard | ✅ |
+| Safe Non-Motor `no_pattern` | ✅ |
 | RAG Retrieval | ✅ |
 | Machine Metadata Filtering | ✅ |
+| Time-Based RAG Context | ✅ |
 | Gemini LLM | ✅ |
 | Evidence-Grounded Answers | ✅ |
 | FastAPI Assistant Endpoint | ✅ |
 | React Dashboard | ✅ |
 | Factory Layout | ✅ |
 | Heat Map | ✅ |
-| Regression Tests | ✅ 19/19 |
+| Regression Tests | ✅ 22/22 |
 | Frontend Production Build | ✅ |
 
 ---
 
-## 21. MVP Sınırlamaları
+# 21. MVP Sınırlamaları
 
 Bu proje bir demonstrasyon ve bakım karar destek MVP'sidir.
 
-* Sensör verileri sentetiktir.
-* Teknik dokümanlar demo amaçlı hazırlanmıştır.
-* Threshold değerleri gerçek üretici limitleri değildir.
-* Fiziksel ekipman kontrolü gerçekleştirilmez.
-* Kritik bakım kararları insan onayına bırakılır.
-* LLM deterministik teşhisin yerine geçmez.
-* OCR desteklenmez.
-* Hybrid retrieval ve re-ranking eklenmemiştir.
-* 3D fabrika görünümü MVP kapsamı dışındadır.
-* Farklı asset türleri için tüm fiziksel arıza teşhisleri henüz generik hale getirilmemiştir.
+Mevcut sınırlamalar:
+
+- Sensör verileri sentetiktir.
+- Sistem gerçek zamanlı bir IoT stream'e bağlı değildir.
+- Teknik dokümanlar demo amacıyla hazırlanmıştır.
+- Threshold değerleri gerçek üretici limitleri değildir.
+- Fiziksel ekipman kontrolü gerçekleştirilmez.
+- Kritik bakım kararları insan onayına bırakılır.
+- LLM deterministik teşhisin yerine geçmez.
+- OCR desteklenmez.
+- Hybrid retrieval eklenmemiştir.
+- Re-ranking eklenmemiştir.
+- Agent orchestration kullanılmamaktadır.
+- 3D fabrika görünümü MVP kapsamı dışındadır.
+- Tüm asset tipleri için fiziksel arıza teşhis kuralları henüz tanımlanmamıştır.
+- `electric_motor` için deterministik fiziksel teşhis profili bulunmaktadır.
+- `centrifugal_pump` ve `control_valve` için desteklenmeyen fiziksel teşhisler güvenli biçimde `no_pattern` sonucuna yönlendirilir.
+- Pump ve Valve için ileri seviye fiziksel diagnosis modelleri gelecekte asset-type-specific rule profilleri olarak eklenebilir.
+
+MVP'nin amacı, gerçek saha sisteminin tamamını simüle etmek değil; aşağıdaki mimari yaklaşımın uygulanabilirliğini göstermektir:
+
+```text
+Asset Context
+      +
+Deterministic Analysis
+      +
+Technical Documentation
+      +
+RAG / LLM
+      ↓
+Explainable Maintenance Decision Support
+```
 
 ---
 
-## 22. Genel Mimari
+# 22. Genel Mimari
 
 ```text
 Factory / Asset Context
           ↓
      Sensor Data
           ↓
+ Time-Based Window
+          ↓
  Deterministic Analysis
+          ↓
+Asset-Type-Aware Diagnosis
           ↓
  Diagnosis + Evidence
           ↓
          RAG
           ↓
 Technical Documentation
-+
+          +
 Historical Incidents
           ↓
 Evidence-Grounded AI Answer
           ↓
        FastAPI
           ↓
-     React Dashboard
+    React Dashboard
           ↓
  Factory Layout / Heat Map
 ```
+
+Sistemin tasarım prensibi özetle:
+
+> **Sensör verisini LLM'e doğrudan yorumlatmak yerine, deterministik analiz ile teknik gerçekleri üretmek; RAG ile ilgili teknik kanıtları bulmak ve LLM'i bu kanıtları açıklayan kontrollü bir kullanıcı arayüzü olarak kullanmak.**
 
 ---
 
