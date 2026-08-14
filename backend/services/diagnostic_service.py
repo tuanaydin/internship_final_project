@@ -52,6 +52,7 @@ def diagnose_machine(
     trend_analysis: dict[str, Any],
     data_quality: dict[str, Any],
     threshold_analysis: dict[str, Any],
+    asset_type: str,
 ) -> dict[str, Any]:
     """
     Veri kalitesi, threshold sonuçları ve trendleri kullanarak
@@ -79,7 +80,42 @@ def diagnose_machine(
         }
 
     # --------------------------------------------------
-    # 2. TREND SONUÇLARI
+    # 2. ASSET TYPE / DIAGNOSTIC PROFILE
+    # --------------------------------------------------
+    #
+    # Bu MVP'de fiziksel deterministik teşhis kuralları
+    # yalnızca electric_motor tipi için tanımlıdır.
+    #
+    # Desteklenmeyen asset tiplerinde Motor-A'ya ait
+    # alarm veya bakım prosedürleri üretilmemelidir.
+    # --------------------------------------------------
+
+    if asset_type != "electric_motor":
+        return {
+            "status": "no_pattern",
+            "diagnosis": None,
+            "confidence": "low",
+            "alarm_code": None,
+            "recommended_procedure": None,
+            "escalation_required": False,
+            "escalation_procedure": None,
+            "evidence": [
+                f"asset_type={asset_type}",
+            ],
+            "message": (
+                "No deterministic physical diagnosis rules are "
+                f"configured for asset type '{asset_type}'."
+            ),
+        }
+
+
+
+
+
+
+
+    # --------------------------------------------------
+    # 3. TREND SONUÇLARI
     # --------------------------------------------------
 
     temperature_trend = _get_trend(
@@ -108,7 +144,7 @@ def diagnose_machine(
     )
 
     # --------------------------------------------------
-    # 3. MEVCUT ÖLÇÜMLER
+    # 4. MEVCUT ÖLÇÜMLER
     # --------------------------------------------------
 
     vibration = measurement.get("vibration_mm_s")
@@ -116,7 +152,7 @@ def diagnose_machine(
     load = measurement.get("load_pct")
 
     # --------------------------------------------------
-    # 4. THRESHOLD SONUÇLARI
+    # 5. THRESHOLD SONUÇLARI
     # --------------------------------------------------
 
     current_threshold = _get_sensor_analysis(
@@ -134,7 +170,7 @@ def diagnose_machine(
     )
 
     # --------------------------------------------------
-    # 5. BEARING DEGRADATION
+    # 6. BEARING DEGRADATION
     #
     # Sıcaklık ve titreşim birlikte yükseliyor.
     # --------------------------------------------------
@@ -172,7 +208,7 @@ def diagnose_machine(
         }
 
     # --------------------------------------------------
-    # 6. OVERLOAD
+    # 7. OVERLOAD
     #
     # Yük ve akım eşik üzerinde ise overload deseni
     # desteklenir. Trendler ek kanıt olarak kullanılır.
@@ -241,7 +277,7 @@ def diagnose_machine(
         }
 
     # --------------------------------------------------
-    # 7. COOLING DEGRADATION
+    # 8. COOLING DEGRADATION
     #
     # Sıcaklık yükselirken titreşim normal kalıyor.
     # --------------------------------------------------
@@ -285,7 +321,7 @@ def diagnose_machine(
         }
 
     # --------------------------------------------------
-    # 8. TANIMLI DESEN BULUNAMADI
+    # 9. TANIMLI DESEN BULUNAMADI
     # --------------------------------------------------
 
     return {

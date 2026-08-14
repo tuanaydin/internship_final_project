@@ -31,6 +31,10 @@ from backend.services.rag.rag_chain import (
     create_rag_chain,
 )
 
+from backend.services.asset_service import (
+    get_machine_by_id,
+)
+
 
 def _get_trend_direction(
     trend_analysis: dict[str, Any],
@@ -205,6 +209,12 @@ def prepare_rag_context_at(
         raise ValueError(
             "k must be greater than zero."
         )
+    machine = get_machine_by_id(machine_id)
+
+    if machine is None:
+        raise ValueError(
+            f"Machine '{machine_id}' not found."
+        )
 
     # Motor-A dummy dataset şu anda
     # 5 dakikalık örnekleme kullanıyor.
@@ -249,6 +259,7 @@ def prepare_rag_context_at(
         trend_analysis=trend_analysis,
         data_quality=data_quality,
         threshold_analysis=threshold_analysis,
+        asset_type=machine["type"],
     )
 
     # 5. RAG için kompakt deterministic özet

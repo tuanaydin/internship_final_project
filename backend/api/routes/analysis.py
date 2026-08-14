@@ -285,6 +285,7 @@ def machine_diagnostics_at(
         trend_analysis=trend_analysis,
         data_quality=data_quality,
         threshold_analysis=threshold_analysis,
+        asset_type=machine["type"],
     )
 
     return {
