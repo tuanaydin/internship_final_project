@@ -8,9 +8,12 @@ from backend.services.anomaly_service import (
 from backend.services.data_quality_service import (
     analyze_data_quality,
 )
+#from backend.services.data_service import (get_measurements_until,)
 from backend.services.data_service import (
-    get_measurements_until,
+    get_measurements_in_window,
 )
+
+
 from backend.services.diagnostic_service import (
     diagnose_machine,
 )
@@ -215,7 +218,7 @@ def prepare_rag_context_at(
         raise ValueError(
             f"Machine '{machine_id}' not found."
         )
-
+    """
     # Motor-A dummy dataset şu anda
     # 5 dakikalık örnekleme kullanıyor.
     measurement_limit = (
@@ -226,7 +229,13 @@ def prepare_rag_context_at(
         machine_id=machine_id,
         timestamp=timestamp,
         limit=measurement_limit,
-    )
+    )   
+    """
+    measurements = get_measurements_in_window(
+        machine_id=machine_id,
+        timestamp=timestamp,
+        window_minutes=window_minutes,
+        )
 
     if not measurements:
         raise ValueError(
